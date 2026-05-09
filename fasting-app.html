@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファスティングサポートアプリ</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #f0f4ff 0%, #fce4ec 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      color: #5c6bc0;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 28px;
+      margin-bottom: 24px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      color: #5c6bc0;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 .icon { font-size: 1.3rem; }
+
+    .input-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+      background: #fafafa;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #7986cb;
+      background: #fff;
+    }
+
+    button {
+      background: linear-gradient(135deg, #7986cb, #5c6bc0);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      font-weight: 600;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(92,107,192,0.35);
+    }
+
+    button:active { transform: translateY(0); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef9a9a, #e57373);
+      font-size: 0.85rem;
+      padding: 8px 16px;
+    }
+
+    /* BMI結果 */
+    .bmi-result {
+      display: none;
+      margin-top: 20px;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .bmi-number {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .bmi-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 6px 0 12px;
+    }
+
+    .bmi-bar-wrap {
+      background: #eee;
+      border-radius: 99px;
+      height: 12px;
+      margin: 12px 0 4px;
+      position: relative;
+      overflow: visible;
+    }
+
+    .bmi-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.6s ease;
+    }
+
+    .bmi-bar-marker {
+      position: absolute;
+      top: -4px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border: 3px solid #5c6bc0;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      transition: left 0.6s ease;
+    }
+
+    .bmi-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: #999;
+      margin-top: 6px;
+    }
+
+    /* ファスティング推奨 */
+    .recommend-box {
+      display: none;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    .recommend-box h3 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .recommend-box ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .recommend-box ul li {
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.07);
+      font-size: 0.92rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .recommend-box ul li:last-child { border-bottom: none; }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      white-space: nowrap;
+      margin-right: 2px;
+    }
+
+    /* 体重記録 */
+    .record-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .record-list {
+      margin-top: 18px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .record-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      gap: 8px;
+    }
+
+    .record-item .date { color: #888; font-size: 0.82rem; }
+    .record-item .vals { font-weight: 600; color: #5c6bc0; }
+    .record-item .del-btn {
+      background: none;
+      border: none;
+      color: #e57373;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0 4px;
+      box-shadow: none;
+    }
+    .record-item .del-btn:hover { transform: none; box-shadow: none; }
+
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+      margin-top: 24px;
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: #bbb;
+      font-size: 0.9rem;
+      margin: 20px 0;
+    }
+
+    /* カラーテーマ helpers */
+    .blue-bg   { background: #e8eaf6; }
+    .green-bg  { background: #e8f5e9; }
+    .yellow-bg { background: #fffde7; }
+    .orange-bg { background: #fff3e0; }
+    .red-bg    { background: #fce4ec; }
+
+    .blue-c   { color: #3949ab; }
+    .green-c  { color: #2e7d32; }
+    .yellow-c { color: #f57f17; }
+    .orange-c { color: #e65100; }
+    .red-c    { color: #c62828; }
+
+    .tag-blue   { background: #c5cae9; color: #283593; }
+    .tag-green  { background: #c8e6c9; color: #1b5e20; }
+    .tag-yellow { background: #fff9c4; color: #f57f17; }
+    .tag-orange { background: #ffe0b2; color: #bf360c; }
+    .tag-red    { background: #ffcdd2; color: #b71c1c; }
+
+    .note {
+      font-size: 0.78rem;
+      color: #999;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.4rem; }
+      .card { padding: 18px; }
+      .bmi-number { font-size: 2.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>🥗 ファスティングサポートアプリ</h1>
+<p class="subtitle">BMIを計算して、あなたに合ったファスティングプランを提案します</p>
+
+<!-- ① BMI計算 -->
+<div class="card">
+  <h2><span class="icon">📏</span> BMI計算＆ファスティング提案</h2>
+
+  <div class="input-row">
+    <div class="input-group">
+      <label>身長（cm）</label>
+      <input type="number" id="height" placeholder="例: 165" min="50" max="250" step="0.1">
+    </div>
+    <div class="input-group">
+      <label>体重（kg）</label>
+      <input type="number" id="weight-bmi" placeholder="例: 60" min="10" max="300" step="0.1">
+    </div>
+  </div>
+  <button onclick="calcBMI()">BMIを計算する</button>
+
+  <!-- BMI結果 -->
+  <div class="bmi-result" id="bmiResult">
+    <div class="bmi-number" id="bmiValue">--</div>
+    <div class="bmi-label" id="bmiLabel">--</div>
+
+    <div class="bmi-bar-wrap">
+      <div style="
+        position:absolute; top:0; left:0; right:0; bottom:0; border-radius:99px;
+        background: linear-gradient(to right, #64b5f6 0%, #81c784 22%, #aed581 44%, #ffb74d 66%, #e57373 100%);
+      "></div>
+      <div class="bmi-bar-marker" id="bmiMarker"></div>
+    </div>
+    <div class="bmi-scale">
+      <span>低体重<br>〜18.4</span>
+      <span>標準<br>18.5〜24.9</span>
+      <span>過体重<br>25〜29.9</span>
+      <span>肥満<br>30〜</span>
+    </div>
+  </div>
+
+  <!-- ファスティング推奨 -->
+  <div class="recommend-box" id="recommendBox">
+    <h3>💡 おすすめのファスティングプラン</h3>
+    <ul id="recommendList"></ul>
+    <p class="note" id="recommendNote"></p>
+  </div>
+</div>
+
+<!-- ② 体重記録 -->
+<div class="card">
+  <h2><span class="icon">📝</span> 毎日の体重を記録する</h2>
+
+  <div class="record-row">
+    <div class="input-group">
+      <label>日付</label>
+      <input type="number" id="rec-date" placeholder="例: 20260510" min="20200101" max="20991231">
+    </div>
+    <div class="input-group">
+      <label>身長（cm）</label>
+      <input type="number" id="rec-height" placeholder="例: 165" min="50" max="250" step="0.1">
+    </div>
+    <div class="input-group">
+      <label>体重（kg）</label>
+      <input type="number" id="rec-weight" placeholder="例: 60" min="10" max="300" step="0.1">
+    </div>
+    <button onclick="addRecord()" style="white-space:nowrap">記録する</button>
+  </div>
+
+  <div id="recordList" class="record-list"></div>
+</div>
+
+<!-- ③ グラフ -->
+<div class="card">
+  <h2><span class="icon">📊</span> 体重・BMIの推移グラフ</h2>
+  <div class="chart-wrap">
+    <canvas id="trendChart"></canvas>
+  </div>
+  <p class="empty-msg" id="chartEmpty" style="display:none">記録を追加するとグラフが表示されます</p>
+</div>
+
+<script>
+// ── データ永続化 ──
+const STORE_KEY = 'fasting_records_v1';
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveRecords(recs) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(recs));
+}
+
+// ── BMI計算 ──
+function calcBMI() {
+  const h = parseFloat(document.getElementById('height').value);
+  const w = parseFloat(document.getElementById('weight-bmi').value);
+
+  if (!h || !w || h < 50 || h > 250 || w < 10 || w > 300) {
+    alert('身長と体重を正しく入力してください');
+    return;
+  }
+
+  const bmi = w / ((h / 100) ** 2);
+  showBMI(bmi);
+  showRecommend(bmi);
+}
+
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return { label: '低体重',  cls: 'blue',   tagCls: 'tag-blue' };
+  if (bmi < 25)   return { label: '標準体重', cls: 'green',  tagCls: 'tag-green' };
+  if (bmi < 30)   return { label: '過体重',   cls: 'orange', tagCls: 'tag-orange' };
+  return              { label: '肥満',      cls: 'red',    tagCls: 'tag-red' };
+}
+
+function showBMI(bmi) {
+  const cat = bmiCategory(bmi);
+  const resultEl = document.getElementById('bmiResult');
+  resultEl.style.display = 'block';
+  resultEl.className = `bmi-result ${cat.cls}-bg`;
+
+  document.getElementById('bmiValue').textContent = bmi.toFixed(1);
+  document.getElementById('bmiValue').className = `bmi-number ${cat.cls}-c`;
+  document.getElementById('bmiLabel').textContent = cat.label;
+  document.getElementById('bmiLabel').className = `bmi-label ${cat.cls}-c`;
+
+  // マーカー位置: 15〜38のレンジを0〜100%にマッピング
+  const pct = Math.min(100, Math.max(0, (bmi - 15) / (38 - 15) * 100));
+  document.getElementById('bmiMarker').style.left = pct + '%';
+}
+
+function showRecommend(bmi) {
+  const box = document.getElementById('recommendBox');
+  const list = document.getElementById('recommendList');
+  const note = document.getElementById('recommendNote');
+  box.style.display = 'block';
+
+  let plans = [];
+  let noteText = '';
+  let boxBg = '';
+
+  if (bmi < 18.5) {
+    boxBg = 'blue-bg';
+    plans = [
+      { tag: '注意', tagCls: 'tag-blue', text: 'BMIが低体重域のため、ファスティングは推奨しません。' },
+      { tag: 'アドバイス', tagCls: 'tag-blue', text: 'まずは栄養バランスの良い食事で適正体重を目指しましょう。' },
+    ];
+    noteText = '※ ファスティングは体重が正常範囲になってから検討してください。';
+  } else if (bmi < 25) {
+    boxBg = 'green-bg';
+    plans = [
+      { tag: '推奨頻度', tagCls: 'tag-green', text: '月1〜2回の16時間ファスティング（体調維持・デトックス目的）' },
+      { tag: '方法', tagCls: 'tag-green', text: '夕食後〜翌昼まで16時間断食（例: 夜8時〜翌昼12時）' },
+      { tag: '維持', tagCls: 'tag-green', text: '現在の体重・食習慣をキープしながら無理のない範囲で実施' },
+    ];
+    noteText = '※ 標準体重です。ファスティングは健康維持目的として活用しましょう。';
+  } else if (bmi < 30) {
+    boxBg = 'yellow-bg';
+    plans = [
+      { tag: '推奨頻度', tagCls: 'tag-yellow', text: '週1〜2回の16〜18時間ファスティング' },
+      { tag: '方法①', tagCls: 'tag-yellow', text: '16:8法 — 1日の食事時間を8時間以内に制限（週2回から開始）' },
+      { tag: '方法②', tagCls: 'tag-yellow', text: '5:2法 — 週5日通常食、週2日は摂取カロリーを500〜600kcalに制限' },
+      { tag: '目安', tagCls: 'tag-yellow', text: '1〜2週ごとに体重を確認しながら頻度を調整してください' },
+    ];
+    noteText = '※ 過体重域です。無理のないペースでファスティングを取り入れて標準体重を目指しましょう。';
+  } else {
+    boxBg = 'red-bg';
+    plans = [
+      { tag: '推奨頻度', tagCls: 'tag-red', text: '週2〜3回の16時間ファスティング（慣れてから徐々に増やす）' },
+      { tag: '開始方法', tagCls: 'tag-red', text: 'まずは週1回12時間断食から始め、体に慣らしていく' },
+      { tag: '方法', tagCls: 'tag-red', text: '5:2法や隔日ファスティングも効果的（医師・栄養士に相談推奨）' },
+      { tag: '必須', tagCls: 'tag-red', text: '水分（水・無糖お茶）はしっかり摂り、急激な制限は避ける' },
+    ];
+    noteText = '※ 肥満域です。ファスティングの前に医師・管理栄養士に相談することをお勧めします。体調の変化に注意しながら取り組んでください。';
+  }
+
+  box.className = `recommend-box ${boxBg}`;
+  list.innerHTML = plans.map(p =>
+    `<li><span class="tag ${p.tagCls}">${p.tag}</span>${p.text}</li>`
+  ).join('');
+  note.textContent = noteText;
+}
+
+// ── 体重記録 ──
+function addRecord() {
+  const dateVal = document.getElementById('rec-date').value.trim();
+  const h = parseFloat(document.getElementById('rec-height').value);
+  const w = parseFloat(document.getElementById('rec-weight').value);
+
+  if (!dateVal || dateVal.length !== 8 || isNaN(parseInt(dateVal))) {
+    alert('日付を8桁の数字で入力してください（例: 20260510）');
+    return;
+  }
+  if (!h || !w || h < 50 || h > 250 || w < 10 || w > 300) {
+    alert('身長と体重を正しく入力してください');
+    return;
+  }
+
+  const bmi = w / ((h / 100) ** 2);
+  const recs = loadRecords();
+
+  const existing = recs.findIndex(r => r.date === dateVal);
+  const entry = { date: dateVal, height: h, weight: w, bmi: parseFloat(bmi.toFixed(2)) };
+
+  if (existing >= 0) {
+    if (!confirm(`${formatDate(dateVal)} の記録を上書きしますか？`)) return;
+    recs[existing] = entry;
+  } else {
+    recs.push(entry);
+    recs.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  saveRecords(recs);
+  renderList();
+  renderChart();
+}
+
+function deleteRecord(date) {
+  if (!confirm(`${formatDate(date)} の記録を削除しますか？`)) return;
+  const recs = loadRecords().filter(r => r.date !== date);
+  saveRecords(recs);
+  renderList();
+  renderChart();
+}
+
+function formatDate(d) {
+  return `${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6,8)}`;
+}
+
+function renderList() {
+  const recs = loadRecords();
+  const el = document.getElementById('recordList');
+  if (recs.length === 0) {
+    el.innerHTML = '<p class="empty-msg">まだ記録がありません</p>';
+    return;
+  }
+  el.innerHTML = [...recs].reverse().map(r => {
+    const cat = bmiCategory(r.bmi);
+    return `
+      <div class="record-item">
+        <span class="date">${formatDate(r.date)}</span>
+        <span class="vals">
+          体重 ${r.weight} kg &nbsp;|&nbsp; BMI <span class="${cat.cls}-c">${r.bmi}</span>
+          <span class="tag ${cat.tagCls}" style="margin-left:4px">${cat.label}</span>
+        </span>
+        <button class="del-btn" onclick="deleteRecord('${r.date}')">🗑</button>
+      </div>`;
+  }).join('');
+}
+
+// ── グラフ ──
+let chart = null;
+
+function renderChart() {
+  const recs = loadRecords();
+  const canvas = document.getElementById('trendChart');
+  const emptyMsg = document.getElementById('chartEmpty');
+
+  if (recs.length === 0) {
+    canvas.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
+
+  canvas.style.display = 'block';
+  emptyMsg.style.display = 'none';
+
+  const labels = recs.map(r => formatDate(r.date));
+  const weights = recs.map(r => r.weight);
+  const bmis = recs.map(r => r.bmi);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '体重 (kg)',
+          data: weights,
+          borderColor: '#7986cb',
+          backgroundColor: 'rgba(121,134,203,0.12)',
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: '#5c6bc0',
+          fill: true,
+          yAxisID: 'y1',
+        },
+        {
+          label: 'BMI',
+          data: bmis,
+          borderColor: '#66bb6a',
+          backgroundColor: 'rgba(102,187,106,0.10)',
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: '#43a047',
+          fill: false,
+          borderDash: [6, 3],
+          yAxisID: 'y2',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === 'BMI') {
+                const bmi = ctx.parsed.y;
+                return ` BMI ${bmi.toFixed(1)}  (${bmiCategory(bmi).label})`;
+              }
+              return ` 体重 ${ctx.parsed.y} kg`;
+            }
+          }
+        },
+        annotation: {
+          // 標準BMI範囲ライン (annotation pluginなしでも問題なし)
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxRotation: 45, font: { size: 11 } },
+          grid: { color: '#f0f0f0' }
+        },
+        y1: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: '体重 (kg)', color: '#7986cb' },
+          ticks: { color: '#7986cb' },
+          grid: { color: '#f0f0f0' }
+        },
+        y2: {
+          type: 'linear',
+          position: 'right',
+          title: { display: true, text: 'BMI', color: '#66bb6a' },
+          ticks: { color: '#66bb6a' },
+          grid: { drawOnChartArea: false },
+          suggestedMin: 15,
+          suggestedMax: 35,
+        }
+      }
+    }
+  });
+}
+
+// ── 初期化 ──
+(function init() {
+  // 今日の日付をデフォルトセット
+  const today = new Date();
+  const yy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  document.getElementById('rec-date').value = `${yy}${mm}${dd}`;
+
+  renderList();
+  renderChart();
+})();
+</script>
+</body>
+</html>
