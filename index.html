@@ -2,666 +2,754 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ファスティングサポートアプリ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FastingLog</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
+    :root {
+      --bg: #F5F2ED;
+      --surface: #FFFFFF;
+      --surface2: #F9F7F4;
+      --accent: #6B9E9E;
+      --accent-light: #E6F2F2;
+      --accent-dark: #4A7F7F;
+      --sage: #7A9F7A;
+      --sage-light: #EAF3EA;
+      --beige: #C4A882;
+      --beige-light: #F7EFE3;
+      --text: #2A2A2A;
+      --text2: #666;
+      --text3: #AAA;
+      --border: #EAE5DC;
+      --shadow: 0 2px 16px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.09);
+      --r: 16px;
+      --r-sm: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
-      font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
-      background: linear-gradient(135deg, #f0f4ff 0%, #fce4ec 100%);
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      padding: 20px;
-      color: #333;
+      max-width: 430px;
+      margin: 0 auto;
     }
+    ::-webkit-scrollbar { width: 0; }
 
-    h1 {
-      text-align: center;
-      font-size: 1.8rem;
-      color: #5c6bc0;
-      margin-bottom: 8px;
-      letter-spacing: 0.05em;
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: block; }
+
+    /* AUTH */
+    #screen-auth {
+      background: linear-gradient(160deg, #E6F2F2 0%, #F5F2ED 45%, #EAF3EA 100%);
+      padding: 64px 28px 40px;
     }
+    .auth-logo { text-align: center; margin-bottom: 44px; }
+    .auth-logo .logo-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
+    .auth-logo h1 { font-size: 1.9rem; font-weight: 300; letter-spacing: 0.18em; color: var(--accent-dark); }
+    .auth-logo p { font-size: 0.8rem; color: var(--text3); margin-top: 6px; letter-spacing: 0.05em; }
+    .auth-card { background: var(--surface); border-radius: var(--r); padding: 28px 24px; box-shadow: var(--shadow-md); }
+    .auth-tabs { display: flex; background: var(--bg); border-radius: 99px; padding: 4px; margin-bottom: 24px; }
+    .auth-tab { flex: 1; text-align: center; padding: 9px; border-radius: 99px; font-size: 0.87rem; cursor: pointer; color: var(--text3); transition: all 0.2s; font-weight: 500; }
+    .auth-tab.active { background: var(--surface); color: var(--accent-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
-    .subtitle {
-      text-align: center;
-      color: #888;
-      font-size: 0.9rem;
-      margin-bottom: 28px;
-    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.77rem; color: var(--text2); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.03em; }
+    .form-group input { width: 100%; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: var(--r-sm); font-size: 0.95rem; font-family: inherit; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.2s; }
+    .form-group input:focus { border-color: var(--accent); background: var(--surface); }
+    .error-msg { background: #FFF1F1; color: #C0392B; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; margin-bottom: 14px; display: none; }
 
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      padding: 28px;
-      margin-bottom: 24px;
-      max-width: 700px;
-      margin-left: auto;
-      margin-right: auto;
-    }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: var(--r-sm); font-size: 0.93rem; font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-outline { background: var(--surface); border: 1.5px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-outline:hover { border-color: var(--accent); }
+    .btn-ghost { background: none; color: var(--text3); font-size: 0.85rem; }
+    .btn-sm { padding: 11px 18px; font-size: 0.87rem; white-space: nowrap; }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text3); font-size: 0.78rem; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    .card h2 {
-      font-size: 1.15rem;
-      color: #5c6bc0;
-      margin-bottom: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    /* ONBOARDING */
+    #screen-onboarding { background: linear-gradient(160deg, #E6F2F2 0%, #F5F2ED 100%); padding: 64px 28px 40px; }
+    .onboarding-header { text-align: center; margin-bottom: 32px; }
+    .onboarding-header h2 { font-size: 1.4rem; font-weight: 400; color: var(--accent-dark); letter-spacing: 0.05em; }
+    .onboarding-header p { font-size: 0.83rem; color: var(--text2); margin-top: 8px; line-height: 1.7; }
 
-    .card h2 .icon { font-size: 1.3rem; }
+    /* MAIN APP */
+    #screen-app { display: none; padding-bottom: 76px; }
+    #screen-app.active { display: block; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-    .input-row {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
+    /* BOTTOM NAV */
+    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; padding: 6px 0 max(8px, env(safe-area-inset-bottom)); }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; cursor: pointer; color: var(--text3); transition: color 0.2s; }
+    .nav-item.active { color: var(--accent); }
+    .nav-icon { font-size: 1.3rem; }
+    .nav-label { font-size: 0.62rem; font-weight: 500; letter-spacing: 0.03em; }
 
-    .input-group {
-      flex: 1;
-      min-width: 140px;
-    }
+    /* PAGE HEADER */
+    .page-header { background: var(--surface); padding: 18px 20px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+    .page-title { font-size: 1.05rem; font-weight: 500; letter-spacing: 0.05em; }
+    .page-subtitle { font-size: 0.76rem; color: var(--text3); margin-top: 2px; }
 
-    label {
-      display: block;
-      font-size: 0.85rem;
-      color: #666;
-      margin-bottom: 6px;
-      font-weight: 500;
-    }
+    /* CARDS */
+    .card { background: var(--surface); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .card-title { font-size: 0.72rem; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 12px; font-weight: 500; }
 
-    input[type="number"] {
-      width: 100%;
-      padding: 12px 14px;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      font-size: 1rem;
-      transition: border-color 0.2s;
-      background: #fafafa;
-    }
+    /* DASHBOARD */
+    .greeting-card { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); border-radius: var(--r); padding: 20px 18px; color: white; margin-bottom: 12px; }
+    .greeting-card .g-label { font-size: 0.78rem; opacity: 0.8; }
+    .greeting-card .g-name { font-size: 1.35rem; font-weight: 400; margin-top: 2px; letter-spacing: 0.03em; }
+    .greeting-card .g-date { font-size: 0.75rem; opacity: 0.65; margin-top: 6px; }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .mini-card { background: var(--surface); border-radius: var(--r-sm); padding: 14px 16px; box-shadow: var(--shadow); }
+    .mini-card .mc-label { font-size: 0.68rem; color: var(--text3); letter-spacing: 0.05em; text-transform: uppercase; }
+    .mini-card .mc-val { font-size: 1.55rem; font-weight: 300; color: var(--accent-dark); margin-top: 4px; line-height: 1; }
+    .mini-card .mc-unit { font-size: 0.72rem; color: var(--text3); }
+    .phase-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px; font-size: 0.8rem; font-weight: 500; }
+    .badge-none { background: var(--bg); color: var(--text3); }
+    .badge-prep { background: var(--sage-light); color: #3D7A3D; }
+    .badge-main { background: var(--accent-light); color: var(--accent-dark); }
+    .badge-recovery { background: var(--beige-light); color: #7A5A30; }
+    .badge-end { background: #F3F3F3; color: #888; }
 
-    input[type="number"]:focus {
-      outline: none;
-      border-color: #7986cb;
-      background: #fff;
-    }
+    /* WEIGHT */
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .input-group { flex: 1; }
+    .input-group label { display: block; font-size: 0.73rem; color: var(--text3); margin-bottom: 5px; font-weight: 500; }
+    .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: var(--r-sm); font-size: 0.93rem; font-family: inherit; background: var(--surface2); color: var(--text); outline: none; transition: border-color 0.2s; }
+    .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--accent); background: var(--surface); }
+    .input-group textarea { resize: vertical; min-height: 80px; }
+    .chart-container { position: relative; height: 210px; }
+    .bmi-bar-wrap { background: #EEE; border-radius: 99px; height: 7px; margin: 10px 0 6px; position: relative; }
+    .bmi-bar-fill { position: absolute; inset: 0; border-radius: 99px; background: linear-gradient(to right,#64b5f6,#81c784,#aed581,#ffb74d,#e57373); }
+    .bmi-bar-marker { position: absolute; top: -5px; width: 17px; height: 17px; background: white; border: 3px solid var(--accent); border-radius: 50%; transform: translateX(-50%); transition: left 0.5s ease; }
+    .bmi-scale { display: flex; justify-content: space-between; font-size: 0.67rem; color: var(--text3); }
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .history-item:last-child { border-bottom: none; }
+    .history-date { font-size: 0.76rem; color: var(--text3); }
+    .history-val { font-size: 0.92rem; font-weight: 500; color: var(--text); margin-top: 1px; }
+    .bmi-tag { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
 
-    button {
-      background: linear-gradient(135deg, #7986cb, #5c6bc0);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 12px 28px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-      font-family: inherit;
-      font-weight: 600;
-    }
+    /* FASTING */
+    .phase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 4px; }
+    .phase-btn { padding: 14px 10px; border-radius: var(--r-sm); border: 2px solid var(--border); background: var(--surface2); text-align: center; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .phase-btn .p-icon { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+    .phase-btn .p-name { font-size: 0.83rem; font-weight: 500; color: var(--text2); }
+    .phase-btn .p-desc { font-size: 0.69rem; color: var(--text3); margin-top: 2px; }
+    .phase-btn.sel-prep { border-color: var(--sage); background: var(--sage-light); }
+    .phase-btn.sel-prep .p-name { color: #3D7A3D; }
+    .phase-btn.sel-main { border-color: var(--accent); background: var(--accent-light); }
+    .phase-btn.sel-main .p-name { color: var(--accent-dark); }
+    .phase-btn.sel-recovery { border-color: var(--beige); background: var(--beige-light); }
+    .phase-btn.sel-recovery .p-name { color: #7A5A30; }
+    .phase-btn.sel-end { border-color: #CCC; background: #F5F5F5; }
+    .water-display { font-size: 2rem; font-weight: 300; color: var(--accent); line-height: 1; }
+    .water-buttons { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .water-btn { padding: 7px 13px; border: 1.5px solid var(--accent-light); border-radius: 99px; background: var(--accent-light); color: var(--accent-dark); font-size: 0.8rem; font-family: inherit; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+    .water-btn:hover { background: var(--accent); color: white; }
+    .water-btn.reset { background: var(--bg); border-color: var(--border); color: var(--text3); }
 
-    button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(92,107,192,0.35);
-    }
+    /* COMMUNITY */
+    .status-btns { display: flex; flex-direction: column; gap: 9px; margin-bottom: 20px; }
+    .status-btn { padding: 14px 16px; border-radius: var(--r-sm); border: 1.5px solid var(--border); background: var(--surface); text-align: left; cursor: pointer; font-family: inherit; font-size: 0.88rem; color: var(--text); display: flex; align-items: center; gap: 10px; transition: all 0.2s; box-shadow: var(--shadow); }
+    .status-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .status-btn .s-icon { font-size: 1.15rem; }
+    .feed-item { background: var(--surface); border-radius: var(--r-sm); padding: 13px 15px; margin-bottom: 9px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+    .feed-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; color: var(--accent-dark); font-weight: 700; }
+    .feed-name { font-size: 0.83rem; font-weight: 500; }
+    .feed-text { font-size: 0.88rem; color: var(--text2); margin-top: 2px; }
+    .feed-time { font-size: 0.7rem; color: var(--text3); margin-top: 3px; }
 
-    button:active { transform: translateY(0); }
+    /* SETTINGS */
+    .profile-avatar { width: 68px; height: 68px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--accent-dark); margin: 0 auto 10px; font-weight: 700; }
+    .settings-section { margin-bottom: 22px; }
+    .settings-section-title { font-size: 0.7rem; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; padding: 0 4px; margin-bottom: 8px; font-weight: 500; }
+    .settings-card { background: var(--surface); border-radius: var(--r-sm); overflow: hidden; box-shadow: var(--shadow); }
+    .settings-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .settings-item:last-child { border-bottom: none; }
+    .settings-label { font-size: 0.88rem; }
+    .settings-value { font-size: 0.82rem; color: var(--text3); }
+    .toggle { width: 42px; height: 23px; background: #DDD; border-radius: 99px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+    .toggle.on { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; background: white; border-radius: 50%; transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .toggle.on::after { left: 22px; }
 
-    .btn-danger {
-      background: linear-gradient(135deg, #ef9a9a, #e57373);
-      font-size: 0.85rem;
-      padding: 8px 16px;
-    }
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.38); z-index: 200; align-items: flex-end; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border-radius: var(--r) var(--r) 0 0; padding: 24px; width: 100%; max-width: 430px; max-height: 85vh; overflow-y: auto; }
+    .modal-title { font-size: 1rem; font-weight: 500; margin-bottom: 20px; color: var(--text); }
 
-    /* BMI結果 */
-    .bmi-result {
-      display: none;
-      margin-top: 20px;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-    }
+    /* TOAST */
+    .toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%) translateY(12px); background: rgba(42,42,42,0.92); color: white; padding: 10px 20px; border-radius: 99px; font-size: 0.83rem; opacity: 0; transition: all 0.28s; z-index: 300; white-space: nowrap; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .bmi-number {
-      font-size: 3rem;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    .bmi-label {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin: 6px 0 12px;
-    }
-
-    .bmi-bar-wrap {
-      background: #eee;
-      border-radius: 99px;
-      height: 12px;
-      margin: 12px 0 4px;
-      position: relative;
-      overflow: visible;
-    }
-
-    .bmi-bar-fill {
-      height: 100%;
-      border-radius: 99px;
-      transition: width 0.6s ease;
-    }
-
-    .bmi-bar-marker {
-      position: absolute;
-      top: -4px;
-      width: 20px;
-      height: 20px;
-      background: #fff;
-      border: 3px solid #5c6bc0;
-      border-radius: 50%;
-      transform: translateX(-50%);
-      transition: left 0.6s ease;
-    }
-
-    .bmi-scale {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      color: #999;
-      margin-top: 6px;
-    }
-
-    /* ファスティング推奨 */
-    .recommend-box {
-      display: none;
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 16px;
-    }
-
-    .recommend-box h3 {
-      font-size: 1rem;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .recommend-box ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .recommend-box ul li {
-      padding: 7px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.07);
-      font-size: 0.92rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .recommend-box ul li:last-child { border-bottom: none; }
-
-    .tag {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 99px;
-      white-space: nowrap;
-      margin-right: 2px;
-    }
-
-    /* 体重記録 */
-    .record-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-      flex-wrap: wrap;
-    }
-
-    .record-list {
-      margin-top: 18px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
-    .record-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 9px 12px;
-      border-radius: 8px;
-      background: #f5f5f5;
-      margin-bottom: 6px;
-      font-size: 0.9rem;
-      gap: 8px;
-    }
-
-    .record-item .date { color: #888; font-size: 0.82rem; }
-    .record-item .vals { font-weight: 600; color: #5c6bc0; }
-    .record-item .del-btn {
-      background: none;
-      border: none;
-      color: #e57373;
-      cursor: pointer;
-      font-size: 1rem;
-      padding: 0 4px;
-      box-shadow: none;
-    }
-    .record-item .del-btn:hover { transform: none; box-shadow: none; }
-
-    .chart-wrap {
-      position: relative;
-      height: 280px;
-      margin-top: 24px;
-    }
-
-    .empty-msg {
-      text-align: center;
-      color: #bbb;
-      font-size: 0.9rem;
-      margin: 20px 0;
-    }
-
-    /* カラーテーマ helpers */
-    .blue-bg   { background: #e8eaf6; }
-    .green-bg  { background: #e8f5e9; }
-    .yellow-bg { background: #fffde7; }
-    .orange-bg { background: #fff3e0; }
-    .red-bg    { background: #fce4ec; }
-
-    .blue-c   { color: #3949ab; }
-    .green-c  { color: #2e7d32; }
-    .yellow-c { color: #f57f17; }
-    .orange-c { color: #e65100; }
-    .red-c    { color: #c62828; }
-
-    .tag-blue   { background: #c5cae9; color: #283593; }
-    .tag-green  { background: #c8e6c9; color: #1b5e20; }
-    .tag-yellow { background: #fff9c4; color: #f57f17; }
-    .tag-orange { background: #ffe0b2; color: #bf360c; }
-    .tag-red    { background: #ffcdd2; color: #b71c1c; }
-
-    .note {
-      font-size: 0.78rem;
-      color: #999;
-      margin-top: 14px;
-      line-height: 1.6;
-    }
-
-    @media (max-width: 480px) {
-      h1 { font-size: 1.4rem; }
-      .card { padding: 18px; }
-      .bmi-number { font-size: 2.4rem; }
-    }
+    .empty-state { text-align: center; padding: 36px 20px; color: var(--text3); }
+    .empty-icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+    .loading { display: flex; justify-content: center; padding: 40px; color: var(--text3); font-size: 0.85rem; }
   </style>
 </head>
 <body>
 
-<h1>🥗 ファスティングサポートアプリ</h1>
-<p class="subtitle">BMIを計算して、あなたに合ったファスティングプランを提案します</p>
+<div class="toast" id="toast"></div>
 
-<!-- ① BMI計算 -->
-<div class="card">
-  <h2><span class="icon">📏</span> BMI計算＆ファスティング提案</h2>
-
-  <div class="input-row">
-    <div class="input-group">
-      <label>身長（cm）</label>
-      <input type="number" id="height" placeholder="例: 165" min="50" max="250" step="0.1">
-    </div>
-    <div class="input-group">
-      <label>体重（kg）</label>
-      <input type="number" id="weight-bmi" placeholder="例: 60" min="10" max="300" step="0.1">
-    </div>
+<!-- AUTH -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-logo">
+    <span class="logo-icon">🌿</span>
+    <h1>FastingLog</h1>
+    <p>ファスティングをやさしくサポート</p>
   </div>
-  <button onclick="calcBMI()">BMIを計算する</button>
-
-  <!-- BMI結果 -->
-  <div class="bmi-result" id="bmiResult">
-    <div class="bmi-number" id="bmiValue">--</div>
-    <div class="bmi-label" id="bmiLabel">--</div>
-
-    <div class="bmi-bar-wrap">
-      <div style="
-        position:absolute; top:0; left:0; right:0; bottom:0; border-radius:99px;
-        background: linear-gradient(to right, #64b5f6 0%, #81c784 22%, #aed581 44%, #ffb74d 66%, #e57373 100%);
-      "></div>
-      <div class="bmi-bar-marker" id="bmiMarker"></div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">ログイン</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">新規登録</div>
     </div>
-    <div class="bmi-scale">
-      <span>低体重<br>〜18.4</span>
-      <span>標準<br>18.5〜24.9</span>
-      <span>過体重<br>25〜29.9</span>
-      <span>肥満<br>30〜</span>
+    <div class="error-msg" id="auth-error"></div>
+    <div id="login-form">
+      <div class="form-group"><label>メールアドレス</label><input type="email" id="login-email" placeholder="your@email.com" autocomplete="email"></div>
+      <div class="form-group"><label>パスワード</label><input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-primary" onclick="handleLogin()">ログイン</button>
     </div>
-  </div>
-
-  <!-- ファスティング推奨 -->
-  <div class="recommend-box" id="recommendBox">
-    <h3>💡 おすすめのファスティングプラン</h3>
-    <ul id="recommendList"></ul>
-    <p class="note" id="recommendNote"></p>
+    <div id="register-form" style="display:none">
+      <div class="form-group"><label>メールアドレス</label><input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email"></div>
+      <div class="form-group"><label>パスワード（6文字以上）</label><input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password"></div>
+      <div class="form-group"><label>パスワード（確認）</label><input type="password" id="reg-password2" placeholder="••••••••" autocomplete="new-password"></div>
+      <button class="btn btn-primary" onclick="handleRegister()">アカウントを作成</button>
+    </div>
+    <div class="divider">または</div>
+    <button class="btn btn-outline" onclick="handleGoogleLogin()">
+      <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Googleでログイン
+    </button>
   </div>
 </div>
 
-<!-- ② 体重記録 -->
-<div class="card">
-  <h2><span class="icon">📝</span> 毎日の体重を記録する</h2>
-
-  <div class="record-row">
-    <div class="input-group">
-      <label>日付</label>
-      <input type="number" id="rec-date" placeholder="例: 20260510" min="20200101" max="20991231">
-    </div>
-    <div class="input-group">
-      <label>身長（cm）</label>
-      <input type="number" id="rec-height" placeholder="例: 165" min="50" max="250" step="0.1">
-    </div>
-    <div class="input-group">
-      <label>体重（kg）</label>
-      <input type="number" id="rec-weight" placeholder="例: 60" min="10" max="300" step="0.1">
-    </div>
-    <button onclick="addRecord()" style="white-space:nowrap">記録する</button>
+<!-- ONBOARDING -->
+<div id="screen-onboarding" class="screen">
+  <div class="onboarding-header">
+    <div style="font-size:2.4rem;margin-bottom:12px">🌱</div>
+    <h2>はじめまして</h2>
+    <p>基本情報を入力してスタートしましょう</p>
   </div>
-
-  <div id="recordList" class="record-list"></div>
+  <div class="auth-card">
+    <div class="error-msg" id="ob-error"></div>
+    <div class="form-group"><label>ニックネーム</label><input type="text" id="ob-nickname" placeholder="例: みお" maxlength="20"></div>
+    <div class="form-group"><label>身長（cm）</label><input type="number" id="ob-height" placeholder="例: 160" min="100" max="220" step="0.1"></div>
+    <div class="form-group"><label>目標体重（kg）<span style="color:var(--text3);font-weight:300"> ※任意</span></label><input type="number" id="ob-goal" placeholder="例: 55" min="30" max="200" step="0.1"></div>
+    <button class="btn btn-primary" onclick="handleOnboarding()" style="margin-top:6px">はじめる →</button>
+  </div>
 </div>
 
-<!-- ③ グラフ -->
-<div class="card">
-  <h2><span class="icon">📊</span> 体重・BMIの推移グラフ</h2>
-  <div class="chart-wrap">
-    <canvas id="trendChart"></canvas>
+<!-- MAIN APP -->
+<div id="screen-app" class="screen">
+
+  <!-- HOME -->
+  <div id="tab-home" class="tab-content active">
+    <div style="padding:18px">
+      <div class="greeting-card">
+        <div class="g-label" id="g-greeting">こんにちは</div>
+        <div class="g-name" id="g-name">—</div>
+        <div class="g-date" id="g-date">—</div>
+      </div>
+      <div class="stats-row">
+        <div class="mini-card"><div class="mc-label">現在の体重</div><div class="mc-val" id="h-weight">—</div><div class="mc-unit">kg</div></div>
+        <div class="mini-card"><div class="mc-label">BMI</div><div class="mc-val" id="h-bmi">—</div><div class="mc-unit" id="h-bmi-cat">—</div></div>
+      </div>
+      <div class="stats-row" id="h-goal-row" style="display:none">
+        <div class="mini-card"><div class="mc-label">目標体重</div><div class="mc-val" id="h-goal">—</div><div class="mc-unit">kg</div></div>
+        <div class="mini-card"><div class="mc-label">目標まで</div><div class="mc-val" id="h-diff">—</div><div class="mc-unit">kg</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ファスティング状況</div>
+        <div id="h-phase"><span class="phase-badge badge-none">📋 未記録</span></div>
+        <div id="h-phase-date" style="font-size:0.75rem;color:var(--text3);margin-top:8px"></div>
+      </div>
+      <div class="card" id="h-rec-card" style="display:none">
+        <div class="card-title">おすすめプラン</div>
+        <div id="h-rec-text" style="font-size:0.86rem;color:var(--text2);line-height:1.7"></div>
+      </div>
+    </div>
   </div>
-  <p class="empty-msg" id="chartEmpty" style="display:none">記録を追加するとグラフが表示されます</p>
+
+  <!-- WEIGHT -->
+  <div id="tab-weight" class="tab-content">
+    <div class="page-header"><div class="page-title">体重記録</div><div class="page-subtitle">毎日の体重を記録しましょう</div></div>
+    <div style="padding:18px">
+      <div class="card">
+        <div class="card-title">記録する</div>
+        <div class="input-row">
+          <div class="input-group"><label>日付</label><input type="date" id="w-date"></div>
+          <div class="input-group" style="max-width:105px"><label>体重 (kg)</label><input type="number" id="w-weight" placeholder="60.0" step="0.1" min="20" max="300"></div>
+          <button class="btn btn-primary btn-sm" onclick="saveWeight()" style="margin-bottom:0">記録</button>
+        </div>
+      </div>
+      <div class="card" id="bmi-card" style="display:none">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:2.2rem;font-weight:300;color:var(--accent-dark)" id="bmi-val">—</span>
+          <span style="font-size:0.85rem;font-weight:500" id="bmi-cat-text">—</span>
+        </div>
+        <div class="bmi-bar-wrap"><div class="bmi-bar-fill"></div><div class="bmi-bar-marker" id="bmi-marker"></div></div>
+        <div class="bmi-scale"><span>低体重</span><span>標準</span><span>過体重</span><span>肥満</span></div>
+        <div id="bmi-rec" style="font-size:0.82rem;color:var(--text2);margin-top:12px;line-height:1.6;padding-top:12px;border-top:1px solid var(--border)"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">推移グラフ</div>
+        <div class="chart-container"><canvas id="weightChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">記録一覧</div>
+        <div id="w-history"><div class="empty-state"><div class="empty-icon">⚖️</div><p>まだ記録がありません</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASTING -->
+  <div id="tab-fasting" class="tab-content">
+    <div class="page-header"><div class="page-title">ファスティング記録</div><div class="page-subtitle">今日の状態を記録しましょう</div></div>
+    <div style="padding:18px">
+      <div class="card">
+        <div class="card-title">日付</div>
+        <input type="date" id="f-date" style="width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:0.93rem;background:var(--surface2);outline:none" onchange="loadTodayFasting()">
+      </div>
+      <div class="card">
+        <div class="card-title">フェーズを選択</div>
+        <div class="phase-grid">
+          <button class="phase-btn" id="p-prep" onclick="selectPhase('preparation')"><span class="p-icon">🥗</span><span class="p-name">準備期</span><span class="p-desc">食事を徐々に減らす</span></button>
+          <button class="phase-btn" id="p-main" onclick="selectPhase('main')"><span class="p-icon">✨</span><span class="p-name">本番</span><span class="p-desc">ファスティング中</span></button>
+          <button class="phase-btn" id="p-recovery" onclick="selectPhase('recovery')"><span class="p-icon">🌸</span><span class="p-name">回復期</span><span class="p-desc">食事を徐々に戻す</span></button>
+          <button class="phase-btn" id="p-end" onclick="selectPhase('end')"><span class="p-icon">🎉</span><span class="p-name">終了</span><span class="p-desc">完了！</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">水分摂取</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span class="water-display" id="water-val">0</span>
+          <span style="font-size:0.8rem;color:var(--text3)">ml</span>
+        </div>
+        <div class="water-buttons">
+          <button class="water-btn" onclick="addWater(100)">+100ml</button>
+          <button class="water-btn" onclick="addWater(150)">+150ml</button>
+          <button class="water-btn" onclick="addWater(200)">+200ml</button>
+          <button class="water-btn" onclick="addWater(500)">+500ml</button>
+          <button class="water-btn reset" onclick="resetWater()">リセット</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">補食・サプリメント</div>
+        <div class="input-group"><textarea id="f-supplement" placeholder="例: 酵素ドリンク 50ml、梅干し 1個"></textarea></div>
+      </div>
+      <div class="card">
+        <div class="card-title">メモ・体調</div>
+        <div class="input-group"><textarea id="f-memo" placeholder="例: 少し空腹感あり。体は軽い。"></textarea></div>
+      </div>
+      <button class="btn btn-primary" onclick="saveFasting()" style="margin-bottom:12px">保存する</button>
+      <div class="card">
+        <div class="card-title">記録履歴</div>
+        <div id="f-history"><div class="empty-state"><div class="empty-icon">🌿</div><p>まだ記録がありません</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY -->
+  <div id="tab-community" class="tab-content">
+    <div class="page-header"><div class="page-title">みんなの記録</div><div class="page-subtitle">仲間のファスティング状況</div></div>
+    <div style="padding:18px">
+      <div class="card">
+        <div class="card-title">状況をシェアする</div>
+        <div class="status-btns">
+          <button class="status-btn" onclick="postStatus(1)"><span class="s-icon">🥗</span><span>準備期に入りました！</span></button>
+          <button class="status-btn" onclick="postStatus(2)"><span class="s-icon">✨</span><span>ファスティング本番入りました！</span></button>
+          <button class="status-btn" onclick="postStatus(3)"><span class="s-icon">🌸</span><span>回復期に入りました！</span></button>
+        </div>
+      </div>
+      <div class="card-title" style="padding:4px 0 10px">みんなの投稿</div>
+      <div id="community-feed"><div class="loading">読み込み中…</div></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" class="tab-content">
+    <div class="page-header"><div class="page-title">設定</div></div>
+    <div style="padding:18px">
+      <div style="text-align:center;margin-bottom:24px">
+        <div class="profile-avatar" id="st-avatar">🌿</div>
+        <div style="font-size:1.05rem;font-weight:500" id="st-name">—</div>
+        <div style="font-size:0.78rem;color:var(--text3);margin-top:3px" id="st-email">—</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">プロフィール</div>
+        <div class="settings-card"><div class="settings-item" onclick="openEditProfile()"><span class="settings-label">ニックネーム・身長・目標体重</span><span class="settings-value">›</span></div></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">表示設定</div>
+        <div class="settings-card">
+          <div class="settings-item"><span class="settings-label">目標体重を表示</span><div class="toggle" id="tg-goal" onclick="toggleSetting('showGoal')"></div></div>
+          <div class="settings-item"><span class="settings-label">BMIグラフを表示</span><div class="toggle on" id="tg-bmi" onclick="toggleSetting('showBmiGraph')"></div></div>
+          <div class="settings-item"><span class="settings-label">ファスティング提案を表示</span><div class="toggle on" id="tg-rec" onclick="toggleSetting('showRec')"></div></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">アカウント</div>
+        <div class="settings-card"><div class="settings-item" onclick="handleLogout()"><span class="settings-label" style="color:#C0392B">ログアウト</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-home" onclick="switchTab('home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></div>
+    <div class="nav-item" id="nav-weight" onclick="switchTab('weight')"><span class="nav-icon">⚖️</span><span class="nav-label">体重</span></div>
+    <div class="nav-item" id="nav-fasting" onclick="switchTab('fasting')"><span class="nav-icon">🌿</span><span class="nav-label">記録</span></div>
+    <div class="nav-item" id="nav-community" onclick="switchTab('community')"><span class="nav-icon">👥</span><span class="nav-label">みんな</span></div>
+    <div class="nav-item" id="nav-settings" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">設定</span></div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Profile -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal">
+    <div class="modal-title">プロフィール編集</div>
+    <div class="form-group"><label>ニックネーム</label><input type="text" id="e-nickname" maxlength="20"></div>
+    <div class="form-group"><label>身長（cm）</label><input type="number" id="e-height" step="0.1" min="100" max="220"></div>
+    <div class="form-group"><label>目標体重（kg）</label><input type="number" id="e-goal" step="0.1" min="30" max="200"></div>
+    <button class="btn btn-primary" onclick="saveProfile()" style="margin-bottom:10px">保存する</button>
+    <button class="btn btn-ghost" onclick="closeModal('modal-profile')">キャンセル</button>
+  </div>
 </div>
 
 <script>
-// ── データ永続化 ──
-const STORE_KEY = 'fasting_records_v1';
+const SUPABASE_URL  = 'https://nnhvxnqwbuxnqjrodzkp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uaHZ4bnF3YnV4bnFqcm9kemtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMjU4NTEsImV4cCI6MjA5NDYwMTg1MX0.T2QljSn9KlCFNgl1dswLKKTMxEgr5dsQ5TAw0vcxhiU';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-function loadRecords() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-  catch { return []; }
+let user = null, profile = null, wChart = null, water = 0, phase = null;
+let disp = { showGoal: false, showBmiGraph: true, showRec: true };
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { user = session.user; await loadProfile(); }
+  else showScreen('auth');
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) { user = session.user; await loadProfile(); }
+    else if (event === 'SIGNED_OUT') { user = null; profile = null; showScreen('auth'); }
+  });
 }
 
-function saveRecords(recs) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(recs));
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('user_id', user.id).single();
+  if (data) { profile = data; loadDisp(); showScreen('app'); loadHome(); }
+  else showScreen('onboarding');
 }
 
-// ── BMI計算 ──
-function calcBMI() {
-  const h = parseFloat(document.getElementById('height').value);
-  const w = parseFloat(document.getElementById('weight-bmi').value);
+function loadDisp() { const s = localStorage.getItem('disp_' + user.id); if (s) disp = JSON.parse(s); }
+function saveDisp() { localStorage.setItem('disp_' + user.id, JSON.stringify(disp)); }
 
-  if (!h || !w || h < 50 || h > 250 || w < 10 || w > 300) {
-    alert('身長と体重を正しく入力してください');
-    return;
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'home')      loadHome();
+  if (name === 'weight')    initWeightTab();
+  if (name === 'fasting')   initFastingTab();
+  if (name === 'community') loadCommunity();
+  if (name === 'settings')  loadSettings();
+}
+
+// AUTH
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', i === (tab === 'login' ? 0 : 1)));
+  document.getElementById('login-form').style.display    = tab === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+function authErr(msg) { const e = document.getElementById('auth-error'); e.textContent = msg; e.style.display = 'block'; }
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) return authErr('メールとパスワードを入力してください');
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) authErr(error.message === 'Invalid login credentials' ? 'メールアドレスまたはパスワードが正しくありません' : error.message);
+}
+
+async function handleRegister() {
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  const pass2 = document.getElementById('reg-password2').value;
+  if (!email || !pass) return authErr('メールとパスワードを入力してください');
+  if (pass.length < 6)  return authErr('パスワードは6文字以上にしてください');
+  if (pass !== pass2)   return authErr('パスワードが一致しません');
+  const { error } = await sb.auth.signUp({ email, password: pass });
+  if (error) authErr(error.message);
+  else { document.getElementById('auth-error').style.display = 'none'; showToast('確認メールを送信しました'); }
+}
+
+async function handleGoogleLogin() {
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  if (error) authErr(error.message);
+}
+
+async function handleLogout() {
+  if (!confirm('ログアウトしますか？')) return;
+  await sb.auth.signOut();
+}
+
+// ONBOARDING
+async function handleOnboarding() {
+  const nn   = document.getElementById('ob-nickname').value.trim();
+  const h    = parseFloat(document.getElementById('ob-height').value);
+  const goal = parseFloat(document.getElementById('ob-goal').value) || null;
+  const err  = document.getElementById('ob-error');
+  err.style.display = 'none';
+  if (!nn) { err.textContent = 'ニックネームを入力してください'; err.style.display = 'block'; return; }
+  if (!h || h < 100 || h > 220) { err.textContent = '身長を正しく入力してください'; err.style.display = 'block'; return; }
+  const { error } = await sb.from('profiles').insert({ user_id: user.id, nickname: nn, height: h, goal_weight: goal });
+  if (error) { err.textContent = '保存できませんでした: ' + error.message; err.style.display = 'block'; }
+  else await loadProfile();
+}
+
+// HOME
+async function loadHome() {
+  if (!profile) return;
+  const h = new Date().getHours();
+  document.getElementById('g-greeting').textContent = h < 11 ? 'おはようございます' : h < 17 ? 'こんにちは' : 'こんばんは';
+  document.getElementById('g-name').textContent = profile.nickname + ' さん';
+  document.getElementById('g-date').textContent = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+
+  const { data: wr } = await sb.from('weight_records').select('*').eq('user_id', user.id).order('recorded_date', { ascending: false }).limit(1);
+  if (wr?.length) {
+    const r = wr[0];
+    document.getElementById('h-weight').textContent = r.weight;
+    document.getElementById('h-bmi').textContent = r.bmi;
+    document.getElementById('h-bmi-cat').textContent = bmiCat(r.bmi).label;
+    if (disp.showRec) { document.getElementById('h-rec-text').textContent = fastingRec(r.bmi); document.getElementById('h-rec-card').style.display = ''; }
+    else document.getElementById('h-rec-card').style.display = 'none';
   }
+  if (profile.goal_weight && disp.showGoal && wr?.length) {
+    document.getElementById('h-goal-row').style.display = '';
+    document.getElementById('h-goal').textContent = profile.goal_weight;
+    const diff = (wr[0].weight - profile.goal_weight).toFixed(1);
+    document.getElementById('h-diff').textContent = diff > 0 ? diff : '達成！';
+  } else document.getElementById('h-goal-row').style.display = 'none';
 
-  const bmi = w / ((h / 100) ** 2);
-  showBMI(bmi);
-  showRecommend(bmi);
-}
-
-function bmiCategory(bmi) {
-  if (bmi < 18.5) return { label: '低体重',  cls: 'blue',   tagCls: 'tag-blue' };
-  if (bmi < 25)   return { label: '標準体重', cls: 'green',  tagCls: 'tag-green' };
-  if (bmi < 30)   return { label: '過体重',   cls: 'orange', tagCls: 'tag-orange' };
-  return              { label: '肥満',      cls: 'red',    tagCls: 'tag-red' };
-}
-
-function showBMI(bmi) {
-  const cat = bmiCategory(bmi);
-  const resultEl = document.getElementById('bmiResult');
-  resultEl.style.display = 'block';
-  resultEl.className = `bmi-result ${cat.cls}-bg`;
-
-  document.getElementById('bmiValue').textContent = bmi.toFixed(1);
-  document.getElementById('bmiValue').className = `bmi-number ${cat.cls}-c`;
-  document.getElementById('bmiLabel').textContent = cat.label;
-  document.getElementById('bmiLabel').className = `bmi-label ${cat.cls}-c`;
-
-  // マーカー位置: 15〜38のレンジを0〜100%にマッピング
-  const pct = Math.min(100, Math.max(0, (bmi - 15) / (38 - 15) * 100));
-  document.getElementById('bmiMarker').style.left = pct + '%';
-}
-
-function showRecommend(bmi) {
-  const box = document.getElementById('recommendBox');
-  const list = document.getElementById('recommendList');
-  const note = document.getElementById('recommendNote');
-  box.style.display = 'block';
-
-  let plans = [];
-  let noteText = '';
-  let boxBg = '';
-
-  if (bmi < 18.5) {
-    boxBg = 'blue-bg';
-    plans = [
-      { tag: '注意', tagCls: 'tag-blue', text: 'BMIが低体重域のため、ファスティングは推奨しません。' },
-      { tag: 'アドバイス', tagCls: 'tag-blue', text: 'まずは栄養バランスの良い食事で適正体重を目指しましょう。' },
-    ];
-    noteText = '※ ファスティングは体重が正常範囲になってから検討してください。';
-  } else if (bmi < 25) {
-    boxBg = 'green-bg';
-    plans = [
-      { tag: '推奨頻度', tagCls: 'tag-green', text: '月1〜2回の16時間ファスティング（体調維持・デトックス目的）' },
-      { tag: '方法', tagCls: 'tag-green', text: '夕食後〜翌昼まで16時間断食（例: 夜8時〜翌昼12時）' },
-      { tag: '維持', tagCls: 'tag-green', text: '現在の体重・食習慣をキープしながら無理のない範囲で実施' },
-    ];
-    noteText = '※ 標準体重です。ファスティングは健康維持目的として活用しましょう。';
-  } else if (bmi < 30) {
-    boxBg = 'yellow-bg';
-    plans = [
-      { tag: '推奨頻度', tagCls: 'tag-yellow', text: '週1〜2回の16〜18時間ファスティング' },
-      { tag: '方法①', tagCls: 'tag-yellow', text: '16:8法 — 1日の食事時間を8時間以内に制限（週2回から開始）' },
-      { tag: '方法②', tagCls: 'tag-yellow', text: '5:2法 — 週5日通常食、週2日は摂取カロリーを500〜600kcalに制限' },
-      { tag: '目安', tagCls: 'tag-yellow', text: '1〜2週ごとに体重を確認しながら頻度を調整してください' },
-    ];
-    noteText = '※ 過体重域です。無理のないペースでファスティングを取り入れて標準体重を目指しましょう。';
-  } else {
-    boxBg = 'red-bg';
-    plans = [
-      { tag: '推奨頻度', tagCls: 'tag-red', text: '週2〜3回の16時間ファスティング（慣れてから徐々に増やす）' },
-      { tag: '開始方法', tagCls: 'tag-red', text: 'まずは週1回12時間断食から始め、体に慣らしていく' },
-      { tag: '方法', tagCls: 'tag-red', text: '5:2法や隔日ファスティングも効果的（医師・栄養士に相談推奨）' },
-      { tag: '必須', tagCls: 'tag-red', text: '水分（水・無糖お茶）はしっかり摂り、急激な制限は避ける' },
-    ];
-    noteText = '※ 肥満域です。ファスティングの前に医師・管理栄養士に相談することをお勧めします。体調の変化に注意しながら取り組んでください。';
+  const { data: fl } = await sb.from('fasting_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(1);
+  if (fl?.length) {
+    const pi = phaseInfo(fl[0].phase);
+    document.getElementById('h-phase').innerHTML = `<span class="phase-badge ${pi.badgeCls}">${pi.icon} ${pi.label}</span>`;
+    document.getElementById('h-phase-date').textContent = '最終更新: ' + fmtDate(fl[0].log_date);
   }
-
-  box.className = `recommend-box ${boxBg}`;
-  list.innerHTML = plans.map(p =>
-    `<li><span class="tag ${p.tagCls}">${p.tag}</span>${p.text}</li>`
-  ).join('');
-  note.textContent = noteText;
 }
 
-// ── 体重記録 ──
-function addRecord() {
-  const dateVal = document.getElementById('rec-date').value.trim();
-  const h = parseFloat(document.getElementById('rec-height').value);
-  const w = parseFloat(document.getElementById('rec-weight').value);
+// WEIGHT
+function initWeightTab() { document.getElementById('w-date').value = today(); loadWeightData(); }
 
-  if (!dateVal || dateVal.length !== 8 || isNaN(parseInt(dateVal))) {
-    alert('日付を8桁の数字で入力してください（例: 20260510）');
-    return;
-  }
-  if (!h || !w || h < 50 || h > 250 || w < 10 || w > 300) {
-    alert('身長と体重を正しく入力してください');
-    return;
-  }
-
-  const bmi = w / ((h / 100) ** 2);
-  const recs = loadRecords();
-
-  const existing = recs.findIndex(r => r.date === dateVal);
-  const entry = { date: dateVal, height: h, weight: w, bmi: parseFloat(bmi.toFixed(2)) };
-
-  if (existing >= 0) {
-    if (!confirm(`${formatDate(dateVal)} の記録を上書きしますか？`)) return;
-    recs[existing] = entry;
-  } else {
-    recs.push(entry);
-    recs.sort((a, b) => a.date.localeCompare(b.date));
-  }
-
-  saveRecords(recs);
-  renderList();
-  renderChart();
+async function saveWeight() {
+  const d = document.getElementById('w-date').value;
+  const w = parseFloat(document.getElementById('w-weight').value);
+  if (!d) return showToast('日付を選択してください');
+  if (!w || w < 20 || w > 300) return showToast('体重を正しく入力してください');
+  if (!profile.height) return showToast('設定で身長を登録してください');
+  const bmi = +(w / ((profile.height / 100) ** 2)).toFixed(1);
+  const { error } = await sb.from('weight_records').upsert({ user_id: user.id, recorded_date: d, weight: w, bmi }, { onConflict: 'user_id,recorded_date' });
+  if (error) return showToast('保存できませんでした');
+  showToast('記録しました！');
+  document.getElementById('w-weight').value = '';
+  const cat = bmiCat(bmi);
+  document.getElementById('bmi-card').style.display = '';
+  document.getElementById('bmi-val').textContent = bmi;
+  document.getElementById('bmi-cat-text').textContent = cat.label;
+  document.getElementById('bmi-cat-text').style.color = cat.color;
+  document.getElementById('bmi-marker').style.left = bmiPct(bmi) + '%';
+  document.getElementById('bmi-rec').textContent = fastingRec(bmi);
+  loadWeightData();
 }
 
-function deleteRecord(date) {
-  if (!confirm(`${formatDate(date)} の記録を削除しますか？`)) return;
-  const recs = loadRecords().filter(r => r.date !== date);
-  saveRecords(recs);
-  renderList();
-  renderChart();
+async function loadWeightData() {
+  const { data } = await sb.from('weight_records').select('*').eq('user_id', user.id).order('recorded_date', { ascending: true });
+  renderChart(data || []); renderWeightHistory(data || []);
 }
 
-function formatDate(d) {
-  return `${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6,8)}`;
-}
-
-function renderList() {
-  const recs = loadRecords();
-  const el = document.getElementById('recordList');
-  if (recs.length === 0) {
-    el.innerHTML = '<p class="empty-msg">まだ記録がありません</p>';
-    return;
-  }
-  el.innerHTML = [...recs].reverse().map(r => {
-    const cat = bmiCategory(r.bmi);
-    return `
-      <div class="record-item">
-        <span class="date">${formatDate(r.date)}</span>
-        <span class="vals">
-          体重 ${r.weight} kg &nbsp;|&nbsp; BMI <span class="${cat.cls}-c">${r.bmi}</span>
-          <span class="tag ${cat.tagCls}" style="margin-left:4px">${cat.label}</span>
-        </span>
-        <button class="del-btn" onclick="deleteRecord('${r.date}')">🗑</button>
-      </div>`;
+function renderWeightHistory(recs) {
+  const el = document.getElementById('w-history');
+  if (!recs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖️</div><p>まだ記録がありません</p></div>'; return; }
+  el.innerHTML = [...recs].reverse().slice(0, 15).map(r => {
+    const c = bmiCat(r.bmi);
+    return `<div class="history-item"><div><div class="history-date">${fmtDate(r.recorded_date)}</div><div class="history-val">${r.weight} kg</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-size:0.86rem;color:var(--text2)">BMI ${r.bmi}</span><span class="bmi-tag" style="background:${c.bg};color:${c.color}">${c.label}</span></div></div>`;
   }).join('');
 }
 
-// ── グラフ ──
-let chart = null;
-
-function renderChart() {
-  const recs = loadRecords();
-  const canvas = document.getElementById('trendChart');
-  const emptyMsg = document.getElementById('chartEmpty');
-
-  if (recs.length === 0) {
-    canvas.style.display = 'none';
-    emptyMsg.style.display = 'block';
-    if (chart) { chart.destroy(); chart = null; }
-    return;
-  }
-
-  canvas.style.display = 'block';
-  emptyMsg.style.display = 'none';
-
-  const labels = recs.map(r => formatDate(r.date));
-  const weights = recs.map(r => r.weight);
-  const bmis = recs.map(r => r.bmi);
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(canvas, {
+function renderChart(recs) {
+  const canvas = document.getElementById('weightChart');
+  if (wChart) wChart.destroy();
+  if (!recs.length) return;
+  const showBmi = disp.showBmiGraph;
+  wChart = new Chart(canvas, {
     type: 'line',
     data: {
-      labels,
+      labels: recs.map(r => r.recorded_date.slice(5)),
       datasets: [
-        {
-          label: '体重 (kg)',
-          data: weights,
-          borderColor: '#7986cb',
-          backgroundColor: 'rgba(121,134,203,0.12)',
-          tension: 0.4,
-          pointRadius: 5,
-          pointBackgroundColor: '#5c6bc0',
-          fill: true,
-          yAxisID: 'y1',
-        },
-        {
-          label: 'BMI',
-          data: bmis,
-          borderColor: '#66bb6a',
-          backgroundColor: 'rgba(102,187,106,0.10)',
-          tension: 0.4,
-          pointRadius: 5,
-          pointBackgroundColor: '#43a047',
-          fill: false,
-          borderDash: [6, 3],
-          yAxisID: 'y2',
-        }
+        { label: '体重 (kg)', data: recs.map(r => r.weight), borderColor: '#6B9E9E', backgroundColor: 'rgba(107,158,158,0.07)', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6B9E9E', fill: true, yAxisID: 'y1' },
+        ...(showBmi ? [{ label: 'BMI', data: recs.map(r => r.bmi), borderColor: '#7A9F7A', backgroundColor: 'transparent', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#7A9F7A', borderDash: [5,3], yAxisID: 'y2' }] : [])
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              if (ctx.dataset.label === 'BMI') {
-                const bmi = ctx.parsed.y;
-                return ` BMI ${bmi.toFixed(1)}  (${bmiCategory(bmi).label})`;
-              }
-              return ` 体重 ${ctx.parsed.y} kg`;
-            }
-          }
-        },
-        annotation: {
-          // 標準BMI範囲ライン (annotation pluginなしでも問題なし)
-        }
-      },
+      plugins: { legend: { display: showBmi, position: 'top', labels: { font: { size: 10 }, boxWidth: 18 } } },
       scales: {
-        x: {
-          ticks: { maxRotation: 45, font: { size: 11 } },
-          grid: { color: '#f0f0f0' }
-        },
-        y1: {
-          type: 'linear',
-          position: 'left',
-          title: { display: true, text: '体重 (kg)', color: '#7986cb' },
-          ticks: { color: '#7986cb' },
-          grid: { color: '#f0f0f0' }
-        },
-        y2: {
-          type: 'linear',
-          position: 'right',
-          title: { display: true, text: 'BMI', color: '#66bb6a' },
-          ticks: { color: '#66bb6a' },
-          grid: { drawOnChartArea: false },
-          suggestedMin: 15,
-          suggestedMax: 35,
-        }
+        x: { ticks: { font: { size: 10 }, maxRotation: 45 }, grid: { color: '#F0EDE8' } },
+        y1: { position: 'left', ticks: { font: { size: 10 }, color: '#6B9E9E' }, grid: { color: '#F0EDE8' } },
+        ...(showBmi ? { y2: { position: 'right', ticks: { font: { size: 10 }, color: '#7A9F7A' }, grid: { drawOnChartArea: false }, suggestedMin: 15, suggestedMax: 35 } } : {})
       }
     }
   });
 }
 
-// ── 初期化 ──
-(function init() {
-  // 今日の日付をデフォルトセット
-  const today = new Date();
-  const yy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  document.getElementById('rec-date').value = `${yy}${mm}${dd}`;
+// FASTING
+function initFastingTab() {
+  document.getElementById('f-date').value = today();
+  water = 0; phase = null; updateWater(); updatePhaseUI();
+  document.getElementById('f-supplement').value = '';
+  document.getElementById('f-memo').value = '';
+  loadTodayFasting(); loadFastingHistory();
+}
 
-  renderList();
-  renderChart();
-})();
+async function loadTodayFasting() {
+  const d = document.getElementById('f-date').value;
+  const { data } = await sb.from('fasting_logs').select('*').eq('user_id', user.id).eq('log_date', d).single();
+  if (data) {
+    phase = data.phase; water = data.water_intake_ml || 0;
+    document.getElementById('f-supplement').value = data.supplement_notes || '';
+    document.getElementById('f-memo').value = data.memo || '';
+  } else { phase = null; water = 0; document.getElementById('f-supplement').value = ''; document.getElementById('f-memo').value = ''; }
+  updateWater(); updatePhaseUI();
+}
+
+function selectPhase(p) { phase = p; updatePhaseUI(); }
+function updatePhaseUI() {
+  const map = { preparation:'sel-prep', main:'sel-main', recovery:'sel-recovery', end:'sel-end' };
+  const ids = { preparation:'p-prep', main:'p-main', recovery:'p-recovery', end:'p-end' };
+  Object.keys(ids).forEach(k => { document.getElementById(ids[k]).className = 'phase-btn' + (phase === k ? ' ' + map[k] : ''); });
+}
+function addWater(ml) { water += ml; updateWater(); }
+function resetWater() { water = 0; updateWater(); }
+function updateWater() { document.getElementById('water-val').textContent = water; }
+
+async function saveFasting() {
+  const d = document.getElementById('f-date').value;
+  const sup = document.getElementById('f-supplement').value.trim();
+  const memo = document.getElementById('f-memo').value.trim();
+  if (!d) return showToast('日付を選択してください');
+  if (!phase) return showToast('フェーズを選択してください');
+  const { error } = await sb.from('fasting_logs').upsert({ user_id: user.id, log_date: d, phase, water_intake_ml: water, supplement_notes: sup || null, memo: memo || null }, { onConflict: 'user_id,log_date' });
+  if (error) return showToast('保存できませんでした');
+  showToast('記録しました！'); loadFastingHistory();
+}
+
+async function loadFastingHistory() {
+  const { data } = await sb.from('fasting_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(10);
+  const el = document.getElementById('f-history');
+  if (!data?.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🌿</div><p>まだ記録がありません</p></div>'; return; }
+  el.innerHTML = data.map(r => {
+    const pi = phaseInfo(r.phase);
+    return `<div class="history-item"><div><div class="history-date">${fmtDate(r.log_date)}</div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span>${pi.icon}</span><span class="history-val" style="font-size:0.86rem">${pi.label}</span></div></div><div style="text-align:right"><div style="font-size:0.78rem;color:var(--accent)">${r.water_intake_ml || 0} ml</div>${r.memo ? `<div style="font-size:0.7rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.memo}</div>` : ''}</div></div>`;
+  }).join('');
+}
+
+// COMMUNITY
+const ST = { 1:{icon:'🥗',text:'準備期に入りました！'}, 2:{icon:'✨',text:'ファスティング本番入りました！'}, 3:{icon:'🌸',text:'回復期に入りました！'} };
+
+async function postStatus(type) {
+  const { error } = await sb.from('status_posts').insert({ user_id: user.id, status_type: type });
+  if (error) return showToast('投稿できませんでした');
+  showToast(ST[type].icon + ' ' + ST[type].text); loadCommunity();
+}
+
+async function loadCommunity() {
+  const el = document.getElementById('community-feed');
+  el.innerHTML = '<div class="loading">読み込み中…</div>';
+  const { data } = await sb.from('status_posts').select('*, profiles(nickname)').order('created_at', { ascending: false }).limit(30);
+  if (!data?.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>まだ投稿がありません<br>最初の投稿をシェアしましょう！</p></div>'; return; }
+  el.innerHTML = data.map(d => {
+    const st = ST[d.status_type] || { icon:'📋', text:'' };
+    const nn = d.profiles?.nickname || 'メンバー';
+    return `<div class="feed-item"><div class="feed-avatar">${nn.charAt(0)}</div><div><div class="feed-name">${nn}</div><div class="feed-text">${st.icon} ${st.text}</div><div class="feed-time">${timeAgo(d.created_at)}</div></div></div>`;
+  }).join('');
+}
+
+// SETTINGS
+function loadSettings() {
+  if (!profile) return;
+  document.getElementById('st-name').textContent = profile.nickname;
+  document.getElementById('st-email').textContent = user.email || '';
+  document.getElementById('st-avatar').textContent = profile.nickname.charAt(0);
+  setToggle('tg-goal', disp.showGoal); setToggle('tg-bmi', disp.showBmiGraph); setToggle('tg-rec', disp.showRec);
+}
+function toggleSetting(key) { disp[key] = !disp[key]; saveDisp(); loadSettings(); if (key === 'showBmiGraph') loadWeightData(); }
+function setToggle(id, val) { const el = document.getElementById(id); if (el) el.classList.toggle('on', val); }
+
+function openEditProfile() {
+  document.getElementById('e-nickname').value = profile.nickname || '';
+  document.getElementById('e-height').value = profile.height || '';
+  document.getElementById('e-goal').value = profile.goal_weight || '';
+  document.getElementById('modal-profile').classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+async function saveProfile() {
+  const nn   = document.getElementById('e-nickname').value.trim();
+  const h    = parseFloat(document.getElementById('e-height').value) || null;
+  const goal = parseFloat(document.getElementById('e-goal').value) || null;
+  if (!nn) return showToast('ニックネームを入力してください');
+  const { error } = await sb.from('profiles').update({ nickname: nn, height: h, goal_weight: goal, updated_at: new Date().toISOString() }).eq('user_id', user.id);
+  if (error) return showToast('保存できませんでした');
+  profile.nickname = nn; profile.height = h; profile.goal_weight = goal;
+  closeModal('modal-profile'); showToast('更新しました！'); loadSettings();
+}
+
+// HELPERS
+function bmiCat(bmi) {
+  if (bmi < 18.5) return { label:'低体重', color:'#3D7AB5', bg:'#E8F1FB' };
+  if (bmi < 25)   return { label:'標準',   color:'#3D7A3D', bg:'#EAF3EA' };
+  if (bmi < 30)   return { label:'過体重', color:'#C07800', bg:'#FDF3E3' };
+  return              { label:'肥満',   color:'#B03030', bg:'#FDECEA' };
+}
+function bmiPct(bmi) { return Math.min(100, Math.max(0, (bmi - 15) / 23 * 100)); }
+function fastingRec(bmi) {
+  if (bmi < 18.5) return 'BMIが低体重域のため、ファスティングは推奨しません。栄養バランスの良い食事を心がけましょう。';
+  if (bmi < 25)   return '月1〜2回の16時間ファスティングがおすすめです。夕食後から翌昼まで16時間の断食で、体のデトックスをサポートできます。';
+  if (bmi < 30)   return '週1〜2回の16:8法（食事時間を8時間以内に制限）がおすすめです。無理のないペースで体重管理を始めましょう。';
+  return 'まず週1回の16時間ファスティングから試してみましょう。必ず医師に相談の上で実施してください。';
+}
+function phaseInfo(p) {
+  const m = { preparation:{label:'準備期',icon:'🥗',badgeCls:'badge-prep'}, main:{label:'ファスティング本番',icon:'✨',badgeCls:'badge-main'}, recovery:{label:'回復期',icon:'🌸',badgeCls:'badge-recovery'}, end:{label:'終了',icon:'🎉',badgeCls:'badge-end'} };
+  return m[p] || { label:p, icon:'📋', badgeCls:'badge-none' };
+}
+function fmtDate(s) { const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString('ja-JP', { month:'short', day:'numeric', weekday:'short' }); }
+function timeAgo(s) {
+  const diff = Math.floor((Date.now() - new Date(s)) / 1000);
+  if (diff < 60) return 'たった今';
+  if (diff < 3600) return Math.floor(diff/60) + '分前';
+  if (diff < 86400) return Math.floor(diff/3600) + '時間前';
+  return Math.floor(diff/86400) + '日前';
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); }
+
+init();
 </script>
 </body>
 </html>
