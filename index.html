@@ -135,6 +135,20 @@
     .history-val { font-size: 0.92rem; font-weight: 500; color: var(--text); margin-top: 1px; }
     .bmi-tag { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
 
+    /* PREMIUM GATE */
+    .premium-gate { background: linear-gradient(145deg, #f0f9ff 0%, #e8f5f0 100%); border-radius: var(--r); padding: 32px 24px; text-align: center; margin: 18px; box-shadow: var(--shadow-md); }
+    .premium-gate .gate-icon { font-size: 2.8rem; margin-bottom: 14px; }
+    .premium-gate h3 { font-size: 1.15rem; font-weight: 500; color: var(--accent-dark); margin-bottom: 8px; }
+    .premium-gate p { font-size: 0.83rem; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+    .premium-gate .price-tag { font-size: 1.5rem; font-weight: 300; color: var(--accent-dark); margin-bottom: 20px; }
+    .premium-gate .price-tag span { font-size: 0.8rem; color: var(--text3); }
+    .btn-premium { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: white; border: none; padding: 15px 24px; border-radius: var(--r-sm); font-size: 0.95rem; font-family: inherit; font-weight: 500; cursor: pointer; width: 100%; letter-spacing: 0.03em; box-shadow: 0 4px 15px rgba(107,158,158,0.4); }
+    .premium-features { list-style: none; text-align: left; margin-bottom: 20px; }
+    .premium-features li { font-size: 0.82rem; color: var(--text2); padding: 5px 0; display: flex; align-items: center; gap: 8px; }
+    .premium-features li::before { content: '✓'; color: var(--accent); font-weight: 700; }
+    .free-badge { display: inline-block; background: var(--accent-light); color: var(--accent-dark); font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; letter-spacing: 0.05em; margin-left: 8px; }
+    .paid-badge { display: inline-block; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: white; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; letter-spacing: 0.05em; margin-left: 8px; }
+
     /* FASTING */
     .phase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 4px; }
     .phase-btn { padding: 14px 10px; border-radius: var(--r-sm); border: 2px solid var(--border); background: var(--surface2); text-align: center; cursor: pointer; transition: all 0.2s; font-family: inherit; }
@@ -312,7 +326,31 @@
 
   <!-- FASTING -->
   <div id="tab-fasting" class="tab-content">
-    <div class="page-header"><div class="page-title">ファスティング記録</div><div class="page-subtitle">今日の状態を記録しましょう</div></div>
+    <div class="page-header">
+      <div class="page-title">ファスティング記録 <span id="fasting-plan-badge"></span></div>
+      <div class="page-subtitle">今日の状態を記録しましょう</div>
+    </div>
+
+    <!-- 無料ユーザー向けアップグレード画面 -->
+    <div id="fasting-gate" style="display:none">
+      <div class="premium-gate">
+        <div class="gate-icon">🌿</div>
+        <h3>プレミアムプランで<br>ファスティングを管理</h3>
+        <ul class="premium-features">
+          <li>準備期・本番・回復期のフェーズ管理</li>
+          <li>水分摂取量の記録</li>
+          <li>サプリ・補食メモ</li>
+          <li>体調・メモ記録</li>
+          <li>ファスティング履歴の確認</li>
+        </ul>
+        <div class="price-tag">¥980 <span>/ 月（税込）</span></div>
+        <button class="btn-premium" onclick="upgradeToPremium()">🔓 プレミアムプランに登録する</button>
+        <p style="font-size:0.73rem;color:var(--text3);margin-top:12px;margin-bottom:0">テスト環境 · カード番号: 4242 4242 4242 4242</p>
+      </div>
+    </div>
+
+    <!-- 有料ユーザー向けコンテンツ -->
+    <div id="fasting-content" style="display:none">
     <div style="padding:18px">
       <div class="card">
         <div class="card-title">日付</div>
@@ -355,6 +393,7 @@
         <div id="f-history"><div class="empty-state"><div class="empty-icon">🌿</div><p>まだ記録がありません</p></div></div>
       </div>
     </div>
+    </div><!-- end fasting-content -->
   </div>
 
   <!-- COMMUNITY -->
@@ -382,6 +421,10 @@
         <div class="profile-avatar" id="st-avatar">🌿</div>
         <div style="font-size:1.05rem;font-weight:500" id="st-name">—</div>
         <div style="font-size:0.78rem;color:var(--text3);margin-top:3px" id="st-email">—</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">プラン</div>
+        <div class="settings-card"><div class="settings-item"><span class="settings-label" id="st-plan">—</span></div></div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">プロフィール</div>
@@ -453,6 +496,7 @@ async function init() {
         user = null; profile = null; showScreen('auth');
       }
     });
+    checkUpgradeReturn();
   } catch(e) {
     console.error('init error:', e);
     showScreen('auth');
@@ -665,13 +709,48 @@ function renderChart(recs) {
   });
 }
 
+// PLAN / UPGRADE
+const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_28E9AV1NW0Nb76FgjAfbq00';
+
+function isPaid() { return profile && profile.plan === 'paid'; }
+
+function upgradeToPremium() {
+  const url = `${STRIPE_PAYMENT_LINK}?client_reference_id=${user.id}&prefilled_email=${encodeURIComponent(user.email || '')}`;
+  window.open(url, '_blank');
+}
+
+async function checkUpgradeReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('upgraded') === 'true') {
+    window.history.replaceState({}, '', window.location.pathname);
+    showToast('お支払いありがとうございます！プランを確認中…');
+    // 少し待ってからプロフィールを再取得
+    setTimeout(async () => {
+      await loadProfile();
+      showToast('✨ プレミアムプランが有効になりました！');
+    }, 3000);
+  }
+}
+
 // FASTING
 function initFastingTab() {
-  document.getElementById('f-date').value = today();
-  water = 0; phase = null; updateWater(); updatePhaseUI();
-  document.getElementById('f-supplement').value = '';
-  document.getElementById('f-memo').value = '';
-  loadTodayFasting(); loadFastingHistory();
+  const gate = document.getElementById('fasting-gate');
+  const content = document.getElementById('fasting-content');
+  const badge = document.getElementById('fasting-plan-badge');
+  if (isPaid()) {
+    gate.style.display = 'none';
+    content.style.display = 'block';
+    badge.innerHTML = '<span class="paid-badge">PREMIUM</span>';
+    document.getElementById('f-date').value = today();
+    water = 0; phase = null; updateWater(); updatePhaseUI();
+    document.getElementById('f-supplement').value = '';
+    document.getElementById('f-memo').value = '';
+    loadTodayFasting(); loadFastingHistory();
+  } else {
+    gate.style.display = 'block';
+    content.style.display = 'none';
+    badge.innerHTML = '<span class="free-badge">FREE</span>';
+  }
 }
 
 async function loadTodayFasting() {
@@ -744,6 +823,15 @@ function loadSettings() {
   document.getElementById('st-email').textContent = user.email || '';
   document.getElementById('st-avatar').textContent = profile.nickname.charAt(0);
   setToggle('tg-goal', disp.showGoal); setToggle('tg-bmi', disp.showBmiGraph); setToggle('tg-rec', disp.showRec);
+  // プラン表示
+  const planEl = document.getElementById('st-plan');
+  if (planEl) {
+    if (isPaid()) {
+      planEl.innerHTML = '<span class="paid-badge">PREMIUM</span> プレミアムプラン（¥980/月）';
+    } else {
+      planEl.innerHTML = '<span class="free-badge">FREE</span> 無料プラン　<button onclick="upgradeToPremium()" style="background:var(--accent);color:white;border:none;border-radius:99px;padding:4px 12px;font-size:0.75rem;cursor:pointer;font-family:inherit">アップグレード</button>';
+    }
+  }
 }
 function toggleSetting(key) { disp[key] = !disp[key]; saveDisp(); loadSettings(); if (key === 'showBmiGraph') loadWeightData(); }
 function setToggle(id, val) { const el = document.getElementById(id); if (el) el.classList.toggle('on', val); }
