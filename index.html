@@ -427,19 +427,36 @@
 <script>
 const SUPABASE_URL  = 'https://nnhvxnqwbuxnqjrodzkp.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uaHZ4bnF3YnV4bnFqcm9kemtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMjU4NTEsImV4cCI6MjA5NDYwMTg1MX0.T2QljSn9KlCFNgl1dswLKKTMxEgr5dsQ5TAw0vcxhiU';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let sb;
+try {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+} catch(e) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#c00">ライブラリの読み込みに失敗しました。ページを再読み込みしてください。<br><br><button onclick="location.reload()" style="padding:10px 20px">再読み込み</button></div>';
+  });
+}
 
 let user = null, profile = null, wChart = null, water = 0, phase = null;
 let disp = { showGoal: false, showBmiGraph: true, showRec: true };
 
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) { user = session.user; await loadProfile(); }
-  else showScreen('auth');
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) { user = session.user; await loadProfile(); }
-    else if (event === 'SIGNED_OUT') { user = null; profile = null; showScreen('auth'); }
-  });
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { user = session.user; await loadProfile(); }
+    else showScreen('auth');
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        user = session.user;
+        if (!profile) await loadProfile();
+      } else if (event === 'SIGNED_OUT') {
+        user = null; profile = null; showScreen('auth');
+      }
+    });
+  } catch(e) {
+    console.error('init error:', e);
+    showScreen('auth');
+  }
 }
 
 async function loadProfile() {
@@ -484,8 +501,21 @@ async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-password').value;
   if (!email || !pass) return authErr('メールとパスワードを入力してください');
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) authErr(error.message === 'Invalid login credentials' ? 'メールアドレスまたはパスワードが正しくありません' : error.message);
+  const btn = document.querySelector('#login-form .btn-primary');
+  btn.textContent = '処理中…'; btn.disabled = true;
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      const msg = error.message === 'Invalid login credentials' ? 'メールアドレスまたはパスワードが正しくありません'
+                : error.message === 'Email not confirmed' ? 'メールアドレスの確認が完了していません'
+                : error.message;
+      authErr(msg);
+    }
+  } catch(e) {
+    authErr('通信エラー: ' + e.message);
+  } finally {
+    btn.textContent = 'ログイン'; btn.disabled = false;
+  }
 }
 
 async function handleRegister() {
