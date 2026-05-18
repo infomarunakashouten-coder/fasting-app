@@ -286,9 +286,9 @@
         <div class="card-title">記録する</div>
         <div class="input-row">
           <div class="input-group"><label>日付</label><input type="date" id="w-date"></div>
-          <div class="input-group" style="max-width:105px"><label>体重 (kg)</label><input type="number" id="w-weight" placeholder="60.0" step="0.1" min="20" max="300"></div>
-          <button class="btn btn-primary btn-sm" onclick="saveWeight()" style="margin-bottom:0">記録</button>
+          <div class="input-group"><label>体重 (kg)</label><input type="number" id="w-weight" placeholder="60.0" step="0.1" min="20" max="300" inputmode="decimal"></div>
         </div>
+        <button class="btn btn-primary" onclick="saveWeight()" style="margin-top:10px">記録する</button>
       </div>
       <div class="card" id="bmi-card" style="display:none">
         <div style="display:flex;align-items:baseline;gap:8px">
