@@ -443,9 +443,12 @@ async function init() {
 }
 
 async function loadProfile() {
-  const { data } = await sb.from('profiles').select('*').eq('user_id', user.id).single();
+  const { data, error } = await sb.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
   if (data) { profile = data; loadDisp(); showScreen('app'); loadHome(); }
-  else showScreen('onboarding');
+  else {
+    console.log('loadProfile result:', data, error);
+    showScreen('onboarding');
+  }
 }
 
 function loadDisp() { const s = localStorage.getItem('disp_' + user.id); if (s) disp = JSON.parse(s); }
@@ -516,9 +519,23 @@ async function handleOnboarding() {
   err.style.display = 'none';
   if (!nn) { err.textContent = 'ニックネームを入力してください'; err.style.display = 'block'; return; }
   if (!h || h < 100 || h > 220) { err.textContent = '身長を正しく入力してください'; err.style.display = 'block'; return; }
-  const { error } = await sb.from('profiles').insert({ user_id: user.id, nickname: nn, height: h, goal_weight: goal });
-  if (error) { err.textContent = '保存できませんでした: ' + error.message; err.style.display = 'block'; }
-  else await loadProfile();
+  try {
+    // 既存プロフィールを確認してからinsert/update
+    const { data: existing } = await sb.from('profiles').select('id').eq('user_id', user.id).maybeSingle();
+    let error;
+    if (existing) {
+      const res = await sb.from('profiles').update({ nickname: nn, height: h, goal_weight: goal, updated_at: new Date().toISOString() }).eq('user_id', user.id);
+      error = res.error;
+    } else {
+      const res = await sb.from('profiles').insert({ user_id: user.id, nickname: nn, height: h, goal_weight: goal });
+      error = res.error;
+    }
+    if (error) { err.textContent = '保存できませんでした: ' + error.message; err.style.display = 'block'; }
+    else await loadProfile();
+  } catch(e) {
+    err.textContent = 'エラー: ' + e.message;
+    err.style.display = 'block';
+  }
 }
 
 // HOME
