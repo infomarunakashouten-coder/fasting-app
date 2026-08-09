@@ -75,8 +75,9 @@
 - PR #1で `migration/nextjs-current` を `master` へmerge済み。merge commitは `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0`。
 - `master`を本番ブランチとし、通常開発では最新の `master` から作業ブランチを作成する。`master`へ直接変更・commit・pushしない。
 - Vercelプロジェクト `diet`（Project ID `prj_enUb2rxc8qDEP6hTRJG3xH5M53VM`）はGitHubと接続済みで、Production Branchは `master`。
-- 現行Next.js Production Deploymentは `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`（Ready）。`fasting-diet.vercel.app` はこのDeploymentを指している。
-- 旧Production Deployment `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま、ロールバック用として削除せず保持する。
+- `fasting-diet.vercel.app` はProject Settings → DomainsにProduction Domainとして正式登録済み。Auto-assign Custom Production DomainsはEnabled。
+- 現行Next.js Production Deploymentは `dpl_5MRQAFFaCjhsDRjUqzY1BwVJewrE`（Ready）。`fasting-diet.vercel.app` はこのDeploymentを指している。
+- 直前のProduction Deployment `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X` はReadyのまま、ロールバック用として削除せず保持する。
 - 旧HTML版の `index.html` / `fasting-app.html` は削除せず残している。現在のNext.jsデプロイを妨げていないため、削除する場合は別PRで扱う。
 - 開発環境だけCSP `script-src` に `'unsafe-eval'` を許可し、Next.js React Fast Refreshを動作させた。本番CSPは従来どおり `'unsafe-eval'` を含まない。
 - 新しい作業場所で `npm ci`、TypeScript型チェック、本番buildが成功。localhostで既存アカウントの認証、既存プロフィール・体重・体脂肪率・グラフ・計画・食事時刻、下部ナビを確認済み。
@@ -147,7 +148,7 @@
 - 課金が無効な試用環境では `hasPremiumAccess` が広く真になる。表示上の有料状態と実決済状態を混同しない。
 - 体重とプロフィールには新旧スキーマ互換処理がある。`daily_records`/`weight_records`、`profiles.id`/`profiles.user_id` 等を整理する場合はデータ移行が必要。詳細は `AGENTS.md`。
 - 以前のローカル `next build` ではテンプレート変数置換エラーがあったが、2026-08-08に新しい作業場所で再実行し成功した。
-- Vercelは通常の本番デプロイ後、利用URL `fasting-diet.vercel.app` を自動で最新へ向けない。既定aliasが別名のため、手動alias設定と `inspect` が必要。
+- `fasting-diet.vercel.app` はProduction Domainとして登録済みで、`master`へのmerge後に新Productionへ自動切替される。通常運用では `vercel alias set` を使わず、`inspect`で自動切替結果を確認する。
 - Vercel/Supabaseの認証情報やユーザーの健康データをログや文書へ記録しない。
 
 ## 7. 次のセッションで最初にやること
@@ -166,14 +167,14 @@
 |---|---|---|
 | Type check | 実行済み・成功 | 2026-08-08、Git移行先とCSP修正後に `npx.cmd tsc --noEmit` が終了コード0。 |
 | Local build | 実行済み・成功 | 2026-08-08、Git移行先とCSP修正後に `npm.cmd run build` が成功し、26ページを生成。 |
-| Vercel production build | 実行済み・成功 | 2026-08-09、Next.js deployment `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`、status Ready。merge commit `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0` を使用。 |
+| Vercel production build | 実行済み・成功 | 2026-08-09、Next.js deployment `dpl_5MRQAFFaCjhsDRjUqzY1BwVJewrE`、status Ready。PR #3のmerge commit `8931086fa42d8aa90bdde7bd9072d1ba3a2ae42b` を使用。 |
 | Lint | 未実行 | `npm run lint` スクリプトは存在するが、このセッションでは実行記録なし。 |
 | Automated tests | 未実行／基盤なし | package scriptsにtestなし。ユニット・E2Eテスト設定も確認できない。 |
 | Supabase migration | 実行済み | 食事時刻関連列はユーザーがSQL Editorで実行し成功画面を提示。 |
-| Production deploy | 実行済み・成功 | 2026-08-09、PR #1の`master` merge後にNext.js Productionを作成しReadyを確認。 |
-| Production alias | 実行済み・確認済み | `fasting-diet.vercel.app` を現行Next.js deploymentへ設定し、`vercel inspect` で `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X` を取得。 |
+| Production deploy | 実行済み・成功 | 2026-08-09、PR #3の`master` merge後にProduction `dpl_5MRQAFFaCjhsDRjUqzY1BwVJewrE`を作成しReadyを確認。 |
+| Production domain | 登録済み・確認済み | `fasting-diet.vercel.app` をProject `diet`のProduction Domainとして登録。Auto-assign Enabled。`vercel inspect` で `dpl_5MRQAFFaCjhsDRjUqzY1BwVJewrE` を取得。 |
 | Production smoke check | 実行済み・成功 | 本番URLでログイン、ホーム、プロフィール、体重・履歴・グラフ、ファスティング、ひろば、設定、下部ナビ、再読込、既存データ読込を確認。重大なコンソールエラーなし。 |
-| Rollback | 準備済み | 旧Production `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま削除せず保持。 |
+| Rollback | 準備済み | 直前のProduction `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X` はReadyのまま削除せず保持。 |
 | Local auth/read smoke check | 実行済み・成功 | localhostで既存アカウントへログインし、ホーム、プロフィール、体重・体脂肪率、グラフ、計画、食事時刻、下部ナビを確認。 |
 | Local write smoke check | 実行済み・成功 | 識別可能な一時コミュニティ投稿1件のINSERT、再読込、DELETE、削除後再読込を確認。テストデータ残存なし。 |
 
