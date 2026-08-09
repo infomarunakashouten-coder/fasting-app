@@ -1,6 +1,6 @@
 # Development Status
 
-最終更新: 2026-08-08（Asia/Tokyo）
+最終更新: 2026-08-09（Asia/Tokyo）
 
 この文書は「現在どこまで開発できているか」と「次に何をするか」を記録する。恒久的な仕様、設計方針、DB互換性、安全ルール、デプロイ手順の詳細はルートの [`AGENTS.md`](../AGENTS.md) を参照する。
 
@@ -10,7 +10,7 @@
 
 - 認証が必要なモバイル向け試用版として、本番環境で利用できる段階。
 - Supabase認証、プロフィール、体重・体脂肪率、ファスティング計画、体調・食事時刻、グラフ、ひろば、設定、フィードバック、管理者画面までコード上は実装済み。
-- 本番URLは `https://fasting-diet.vercel.app`。2026-08-04の最新機能デプロイ後、このURLを新デプロイへ手動で割り当て、ユーザー実機で複数食事時刻UIの表示を確認済み。
+- 本番URLは `https://fasting-diet.vercel.app`。2026-08-09にNext.js版への本番切替を完了し、ログイン、既存データ読込、主要画面、ページ遷移、再読込を確認済み。
 - 現在は試用版であり、実際の決済と外部AIは未接続。アプリ全体が正式商用版として完成した状態ではない。
 
 ### 現在動作している主要機能
@@ -69,23 +69,24 @@
 - `docs/DEVELOPMENT_STATUS.md`
   - 本文書。現在地点と次作業を分離して管理するため新規作成。
 
-## 3. 現在作業中の内容
+## 3. 現在のGit・本番運用状態
 
-- 正規Gitリポジトリを `C:\Users\lj\Projects\fasting-tracker` へcloneし、Next.js版を `migration/nextjs-current` ブランチへ移行済み。GitHub originは `https://github.com/infomarunakashouten-coder/fasting-app.git`。
-- 旧HTML版の `index.html` / `fasting-app.html` は削除せず残している。Next.js版の本番切替が完了するまで比較・ロールバック資料として扱う。
+- 正規Gitリポジトリは `C:\Users\lj\Projects\fasting-tracker`。GitHub originは `https://github.com/infomarunakashouten-coder/fasting-app.git`。
+- PR #1で `migration/nextjs-current` を `master` へmerge済み。merge commitは `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0`。
+- `master`を本番ブランチとし、通常開発では最新の `master` から作業ブランチを作成する。`master`へ直接変更・commit・pushしない。
+- Vercelプロジェクト `diet`（Project ID `prj_enUb2rxc8qDEP6hTRJG3xH5M53VM`）はGitHubと接続済みで、Production Branchは `master`。
+- 現行Next.js Production Deploymentは `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`（Ready）。`fasting-diet.vercel.app` はこのDeploymentを指している。
+- 旧Production Deployment `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま、ロールバック用として削除せず保持する。
+- 旧HTML版の `index.html` / `fasting-app.html` は削除せず残している。現在のNext.jsデプロイを妨げていないため、削除する場合は別PRで扱う。
 - 開発環境だけCSP `script-src` に `'unsafe-eval'` を許可し、Next.js React Fast Refreshを動作させた。本番CSPは従来どおり `'unsafe-eval'` を含まない。
 - 新しい作業場所で `npm ci`、TypeScript型チェック、本番buildが成功。localhostで既存アカウントの認証、既存プロフィール・体重・体脂肪率・グラフ・計画・食事時刻、下部ナビを確認済み。
 - 一時コミュニティ投稿1件でINSERT、画面反映、再読込後の永続化、DELETE、削除後の再読込を確認済み。テストデータは残っておらず、既存投稿も維持されている。
-- Next.js版は `migration/nextjs-current` ブランチでGit管理する。現在は本番切替前のVercel接続・Preview確認の段階。本番deploy、`master` merge、`fasting-diet.vercel.app` のalias変更は未実施。
+- PR Previewと新Productionの両方で認証・読み取り中心の主要画面確認を実施し、本番切替後も重大なブラウザコンソールエラーがないことを確認済み。
 
 ## 4. 未完了タスク
 
 ### High
 
-- **本番切替前のGit・Vercel確認**
-  - Next.js版の移行ブランチについてGitHub上の差分を確認する。
-  - 新しい作業場所を既存Vercelプロジェクト `diet` へリンクし、Project ID、Production環境変数、Production Branch、GitHub連携を確認する。
-  - 現在の本番deployment IDを記録し、Previewで認証・既存データ読込・主要画面を確認してから本番切替を判断する。
 - **正式公開前の決済・法務対応**
   - Stripe等の実決済、Webhook、購読状態同期、返金／解約フローは未実装。
   - 特定商取引法表記、運営者情報、問い合わせ先、返金・障害方針が未整備。
@@ -139,7 +140,7 @@
 
 ## 6. 既知の問題・注意点
 
-- 正規Gitリポジトリへの移行は完了したが、Next.js版のcommit/pushとVercel Preview検証は本番切替前に完了させる。
+- Next.js本番移行は完了済み。今後は作業ブランチ、PR、Preview確認、`master`へのmerge、Production確認の手順を維持する。
 - 食事間隔は `conditionHistory` の直近5件だけを参照する。前回の食事記録が範囲外なら自動計算できない。
 - 同日に複数時刻がある場合は、最新2件の差だけを「前回の食事から」として表示・保存する。1日の最長断食や平均ではない。
 - AIタブはルールベースのプレビューで、生成AIによる判定ではない。
@@ -152,11 +153,12 @@
 ## 7. 次のセッションで最初にやること
 
 1. ルートの `AGENTS.md` と本ファイルを読む。
-2. `git status` と現在ブランチを確認し、`migration/nextjs-current` の本番切替状況を確認する。
-3. Vercel Project ID、Production環境変数、Production Branch、GitHub連携、現行本番deployment IDを確認する。
-4. Preview Deployでログイン、ホーム、体重、ファスティング、ひろば、設定、既存データ読込、ブラウザエラーを確認する。
-5. 本番切替を実施する場合は、旧deployment IDをロールバック用に記録してからproduction deployする。
-6. `AGENTS.md` のVercel手順に従い、最後に `fasting-diet.vercel.app` のaliasを新deploymentへ設定して `inspect` する。
+2. `git status` と現在ブランチを確認する。作業開始前に `master` を `origin/master` へfast-forward同期する。
+3. 最新の `master` から目的別の作業ブランチを作成し、`master`へ直接変更・commit・pushしない。
+4. 実装後にTypeScriptチェック、本番build、必要なローカル動作確認を行い、作業ブランチをpushしてPRを作成する。
+5. Vercel PreviewがReadyになったことを確認し、認証、主要画面、既存データ読込、ブラウザエラーを確認してからPRをmergeする。
+6. merge後のProduction DeploymentがReadyになるまで確認し、Deployment URLで検証後、`fasting-diet.vercel.app` の向き先を `inspect` する。
+7. 異常時に戻せるよう、直前の正常なProduction Deploymentを削除せず保持する。
 
 ## 8. 最終確認状況
 
@@ -164,13 +166,14 @@
 |---|---|---|
 | Type check | 実行済み・成功 | 2026-08-08、Git移行先とCSP修正後に `npx.cmd tsc --noEmit` が終了コード0。 |
 | Local build | 実行済み・成功 | 2026-08-08、Git移行先とCSP修正後に `npm.cmd run build` が成功し、26ページを生成。 |
-| Vercel production build | 実行済み・成功 | 2026-08-04、deployment `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR`、status Ready。Next.jsのcompile、型検査、静的ページ生成が成功。 |
+| Vercel production build | 実行済み・成功 | 2026-08-09、Next.js deployment `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`、status Ready。merge commit `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0` を使用。 |
 | Lint | 未実行 | `npm run lint` スクリプトは存在するが、このセッションでは実行記録なし。 |
 | Automated tests | 未実行／基盤なし | package scriptsにtestなし。ユニット・E2Eテスト設定も確認できない。 |
 | Supabase migration | 実行済み | 食事時刻関連列はユーザーがSQL Editorで実行し成功画面を提示。 |
-| Production deploy | 実行済み・成功 | 2026-08-04にVercelへデプロイ。 |
-| Production alias | 実行済み・確認済み | `fasting-diet.vercel.app` を上記デプロイへ手動設定し、`vercel inspect` で同deploymentを取得。 |
-| User device smoke check | 一部実行済み | 体調画面に複数時刻UIと16時間後の目安が表示されることをiPhoneの画面で確認。保存・翌日計算等の完全な一巡は未確認。 |
+| Production deploy | 実行済み・成功 | 2026-08-09、PR #1の`master` merge後にNext.js Productionを作成しReadyを確認。 |
+| Production alias | 実行済み・確認済み | `fasting-diet.vercel.app` を現行Next.js deploymentへ設定し、`vercel inspect` で `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X` を取得。 |
+| Production smoke check | 実行済み・成功 | 本番URLでログイン、ホーム、プロフィール、体重・履歴・グラフ、ファスティング、ひろば、設定、下部ナビ、再読込、既存データ読込を確認。重大なコンソールエラーなし。 |
+| Rollback | 準備済み | 旧Production `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま削除せず保持。 |
 | Local auth/read smoke check | 実行済み・成功 | localhostで既存アカウントへログインし、ホーム、プロフィール、体重・体脂肪率、グラフ、計画、食事時刻、下部ナビを確認。 |
 | Local write smoke check | 実行済み・成功 | 識別可能な一時コミュニティ投稿1件のINSERT、再読込、DELETE、削除後再読込を確認。テストデータ残存なし。 |
 

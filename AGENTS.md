@@ -181,7 +181,11 @@
 - Next.js開発モードのReact Fast RefreshがCSPで拒否されていたため、`process.env.NODE_ENV === "development"` の場合だけ `script-src` に `'unsafe-eval'` を追加した。本番CSPには含めない。
 - 新しい作業場所で `npm ci`、`npx.cmd tsc --noEmit`、`npm.cmd run build` が成功。ローカル認証、既存プロフィール・体重・グラフ・計画・食事時刻の読込、下部ナビを確認済み。
 - 本番Supabaseに対し、識別可能な一時コミュニティ投稿1件のINSERT、再読込、DELETEを確認し、テストデータが残っていないことと既存投稿が維持されていることを確認済み。
-- Next.js版は `migration/nextjs-current` ブランチでGit管理する。本番切替前の残作業は、既存Vercelプロジェクト `diet` へのリンク、Production環境変数・Production Branch・GitHub連携・現行deployment IDの確認、Preview検証である。本番deploy、`master` merge、利用URLのalias変更は未実施。
+- 2026-08-09、PR #1で `migration/nextjs-current` を `master` へmergeし、Next.js版への本番切替を完了した。merge commitは `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0`。
+- Vercelプロジェクト `diet` はGitHubリポジトリ `infomarunakashouten-coder/fasting-app` と接続済みで、Production Branchは `master`。現行Next.js Production Deploymentは `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`（Ready）。
+- `https://fasting-diet.vercel.app` は現行Next.js Productionを指し、ログイン、既存データ読込、主要画面、ページ遷移、再読込、ブラウザコンソールを確認済み。
+- 旧Production Deployment `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま削除せず、ロールバック用に保持する。
+- 通常開発は、最新の `master` から作業ブランチを作成し、Pull Request、Vercel Preview確認、`master`へのmerge、Production Deployment確認の順で行う。`master`へ直接commit・pushしない。
 
 ## 11. 未完了・今後の候補
 
@@ -219,12 +223,15 @@
 ## 14. Vercelデプロイ
 
 - `.vercel/project.json`：project name `diet`、project ID `prj_enUb2rxc8qDEP6hTRJG3xH5M53VM`、org ID `team_z2RhiDUSgW3VPqpzh5NvY1K2`。
+- GitHubリポジトリ `infomarunakashouten-coder/fasting-app` と接続済み。Production Branchは `master`。
 - Vercel CLIは認証期限切れになることがある。その場合は `npx.cmd vercel login` で再認証する。
-- 本番デプロイ：`npx.cmd vercel --prod --yes`。
+- 通常は作業ブランチをpushしてPRを作成し、Vercel PreviewがReadyであることと主要機能を確認してから `master` へmergeする。`master`へのmergeでProduction Deploymentが自動作成されるため、手動Production Deployを重ねて実行しない。
+- Production DeploymentがReadyになったら、まずDeployment URLで動作確認し、その後に利用URLの向き先を確認する。
 - 重要：成功時の自動エイリアスは `mio-ruby.vercel.app` になり得る。ユーザーが使うURLは別なので、毎回デプロイ出力の新URLを使って次を実行する。
   - `npx.cmd vercel alias set <新しい deployment URL> fasting-diet.vercel.app`
   - `npx.cmd vercel inspect fasting-diet.vercel.app`
 - `inspect` で、`fasting-diet.vercel.app` が今回作成した deployment ID、`target production`、`Ready` を指していることを確認してから完了報告する。
+- alias変更は新ProductionのReadyとDeployment URLでの検証後に限る。異常時は直前の正常なProduction Deploymentへaliasを戻し、旧Deploymentは確認が終わるまで削除しない。
 - `.vercel` のリンク先を推測で変更しない。このプロジェクトは名前が `diet`、表示URLが `fasting-diet.vercel.app`、既定aliasが別名という不整合がある。
 
 ## 15. 今後のCodex作業ルール
