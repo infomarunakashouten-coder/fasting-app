@@ -143,7 +143,7 @@ export default function RecordPage() {
     });
   };
 
-  const loadRecords = async () => {
+  const loadRecords = async (formDate = today) => {
     setLoading(true);
 
     const {
@@ -170,12 +170,12 @@ export default function RecordPage() {
     const records = mergeWeightRecordsByDate(newRecords ?? [], oldRecords ?? []);
     setRecentRecords(records);
 
-    const todayRecord = records.find((record) => record.recorded_date === today);
-    if (todayRecord) {
-      applyRecordToForm(todayRecord);
+    const formRecord = records.find((record) => record.recorded_date === formDate);
+    if (formRecord) {
+      applyRecordToForm(formRecord);
     } else {
       savedForm.current = JSON.stringify({
-        date: today,
+        date: formDate,
         weight: "",
         bodyFat: "",
         memo: "",
@@ -254,7 +254,7 @@ export default function RecordPage() {
       ]);
     }
 
-    await loadRecords();
+    await loadRecords(date);
     // The reload replaces a temporary id with the persisted row id. Until that
     // completes, keep navigation guards disabled so the transient form state is
     // never mistaken for an unsaved edit.
