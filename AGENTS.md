@@ -171,7 +171,7 @@
 - 体調履歴の意味が分かりにくい問題：「体調」「お通じ」ラベルを明示。
 - 食事間隔を手入力していた問題：複数の食事時刻から直近の間隔を自動計算し、16時間後を参考時刻として表示する仕様へ変更。
 - `daily_conditions.bowel_movement` のDB制約と日本語選択肢の不一致：`なし` / `あり` を許可するマイグレーションあり。
-- Vercelデプロイ後も利用URLが古い画面を指す問題：Vercelプロジェクトの既定エイリアスが `mio-ruby.vercel.app` で、`fasting-diet.vercel.app` は自動更新されない。デプロイ後に手動でaliasを付け直す必要がある。
+- Vercelの利用URLが自動更新されなかった問題：`fasting-diet.vercel.app` を特定Deploymentへの手動aliasとしてだけ設定し、Project Settings → Domainsへ登録していなかったことが原因。現在はProduction Domainとして正式登録済みで、自動切替を使用する。
 
 ## 10. 現在の作業状態
 
@@ -182,9 +182,9 @@
 - 新しい作業場所で `npm ci`、`npx.cmd tsc --noEmit`、`npm.cmd run build` が成功。ローカル認証、既存プロフィール・体重・グラフ・計画・食事時刻の読込、下部ナビを確認済み。
 - 本番Supabaseに対し、識別可能な一時コミュニティ投稿1件のINSERT、再読込、DELETEを確認し、テストデータが残っていないことと既存投稿が維持されていることを確認済み。
 - 2026-08-09、PR #1で `migration/nextjs-current` を `master` へmergeし、Next.js版への本番切替を完了した。merge commitは `ad0cf7f22bf9b9d3037415e84e3be2ffffd6cbf0`。
-- Vercelプロジェクト `diet` はGitHubリポジトリ `infomarunakashouten-coder/fasting-app` と接続済みで、Production Branchは `master`。現行Next.js Production Deploymentは `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X`（Ready）。
+- Vercelプロジェクト `diet` はGitHubリポジトリ `infomarunakashouten-coder/fasting-app` と接続済みで、Production Branchは `master`。現行Next.js Production Deploymentは `dpl_5MRQAFFaCjhsDRjUqzY1BwVJewrE`（Ready）。
 - `https://fasting-diet.vercel.app` は現行Next.js Productionを指し、ログイン、既存データ読込、主要画面、ページ遷移、再読込、ブラウザコンソールを確認済み。
-- 旧Production Deployment `dpl_F261WiRHZN4GSCSJpiQSeGU8jzVR` はReadyのまま削除せず、ロールバック用に保持する。
+- 直前のProduction Deployment `dpl_3FnN8DwLU5n351xfSpxaJpzBMR3X` はReadyのまま削除せず、ロールバック用に保持する。
 - 通常開発は、最新の `master` から作業ブランチを作成し、Pull Request、Vercel Preview確認、`master`へのmerge、Production Deployment確認の順で行う。`master`へ直接commit・pushしない。
 
 ## 11. 未完了・今後の候補
@@ -224,15 +224,14 @@
 
 - `.vercel/project.json`：project name `diet`、project ID `prj_enUb2rxc8qDEP6hTRJG3xH5M53VM`、org ID `team_z2RhiDUSgW3VPqpzh5NvY1K2`。
 - GitHubリポジトリ `infomarunakashouten-coder/fasting-app` と接続済み。Production Branchは `master`。
+- `fasting-diet.vercel.app` はProject Settings → DomainsにProduction Domainとして正式登録済み。Auto-assign Custom Production DomainsはEnabled。
 - Vercel CLIは認証期限切れになることがある。その場合は `npx.cmd vercel login` で再認証する。
 - 通常は作業ブランチをpushしてPRを作成し、Vercel PreviewがReadyであることと主要機能を確認してから `master` へmergeする。`master`へのmergeでProduction Deploymentが自動作成されるため、手動Production Deployを重ねて実行しない。
-- Production DeploymentがReadyになったら、まずDeployment URLで動作確認し、その後に利用URLの向き先を確認する。
-- 重要：成功時の自動エイリアスは `mio-ruby.vercel.app` になり得る。ユーザーが使うURLは別なので、毎回デプロイ出力の新URLを使って次を実行する。
-  - `npx.cmd vercel alias set <新しい deployment URL> fasting-diet.vercel.app`
-  - `npx.cmd vercel inspect fasting-diet.vercel.app`
+- Production DeploymentがReadyになったら、Deployment URLと利用URLを確認し、`npx.cmd vercel inspect fasting-diet.vercel.app` でProduction Domainが同じDeployment IDを指すことを確認する。
+- 通常運用では `vercel alias set` による本番URLの手動切替を行わない。自動切替されない場合は、Project Domains、Production Branch、Auto-assign設定を調査し、手動変更前に停止する。
 - `inspect` で、`fasting-diet.vercel.app` が今回作成した deployment ID、`target production`、`Ready` を指していることを確認してから完了報告する。
 - alias変更は新ProductionのReadyとDeployment URLでの検証後に限る。異常時は直前の正常なProduction Deploymentへaliasを戻し、旧Deploymentは確認が終わるまで削除しない。
-- `.vercel` のリンク先を推測で変更しない。このプロジェクトは名前が `diet`、表示URLが `fasting-diet.vercel.app`、既定aliasが別名という不整合がある。
+- `.vercel` のリンク先を推測で変更しない。プロジェクト名は `diet`、利用URLはProduction Domainとして登録した `fasting-diet.vercel.app` であり、名前が異なっていても正常な構成である。
 
 ## 15. 今後のCodex作業ルール
 
@@ -243,6 +242,6 @@
 5. 保存処理変更時は、成功後スナップショット、未保存警告、二重タップ防止、エラー時の再試行を確認する。
 6. DB変更には再実行可能なSQLを `supabase/` に追加し、`supabase/README.md` の適用順も更新する。
 7. 実装後は最低限 `npx.cmd tsc --noEmit`。可能なら `npm.cmd run build`。Vercel本番ビルドの成功をローカル型チェックの代用にしない。
-8. デプロイを依頼された場合は、Vercelへ出しただけで終えず `fasting-diet.vercel.app` のaliasを新デプロイへ付け、`inspect` で確認する。
+8. デプロイを依頼された場合は、ProductionがReadyになった後、`fasting-diet.vercel.app` が自動的に同じDeploymentへ切り替わったことを `inspect` で確認する。通常運用で手動alias設定を行わない。
 9. 不要な依存追加、大規模リファクタ、無関係な整形を避ける。既存のユーザー変更を上書きしない。
 10. 新機能・仕様・DB列・運用上の罠を追加または変更したら、このファイルも更新する。
