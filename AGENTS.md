@@ -18,6 +18,8 @@
 - Recharts 2.12.7（体重・体脂肪率グラフ、レポート）。
 - Vercel にデプロイ。インストールは `npm install`、ビルドは `npm run build`、出力は `.next`。
 - 必須環境変数：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`。課金切替：`NEXT_PUBLIC_BILLING_ENABLED`。
+- MVP-01の音声・テキスト健康入力では、サーバー専用の `OPENAI_API_KEY` を使用する。モデルは `OPENAI_HEALTH_PARSE_MODEL` と `OPENAI_TRANSCRIPTION_MODEL` で上書き可能。これらに `NEXT_PUBLIC_` を付けない。
+- 健康入力の実行時検証はZod 4、単体テストはVitest 3.2.4を使用する。
 - 自動テスト基盤は現時点で存在しない。最低限 `npx.cmd tsc --noEmit` と本番相当の `npm.cmd run build` を行う。
 
 ## 3. 重要なフォルダ／ファイル
@@ -71,6 +73,25 @@
 - 体重または体脂肪率だけでも保存可能。未入力値を `0` として扱わない。
 - 14/30/90/365日のグラフ、詳細グラフ、月次レポート。
 - 最新値をプロフィールにも同期。削除時は残っている最新記録から再計算。
+
+### 音声・テキスト健康入力（MVP-01.2）
+
+- 固定下部ナビの上に「🎙 記録」ボタンを置き、体重・体脂肪率・生理開始だけを解析して確認・修正画面へ表示する。
+- MVP-01ではSupabaseへ保存しない。既存の `daily_records` / `weight_records` と保存処理には接続しない。
+- OpenAI APIへ送る前に外部送信の同意が必要。同意文バージョンだけをlocalStorageへ保持し、音声・全文文字起こしはDB・Storageへ保存しない。
+- AI呼び出しは認証必須のNext.jsサーバーAPIに限定し、氏名、メール、Supabase user IDはOpenAIへ送らない。健康情報本文をログやエラー文へ含めない。
+- 音声は30秒・6MBまで。構造化出力はJSON SchemaとZodの両方で検証し、曖昧日付や入力ミス候補を自動確定しない。
+- 音声認識は、利用可能と確認できた端末内SpeechRecognition、通常のブラウザSpeechRecognition、ユーザーが明示的に選んだOpenAI高精度音声認識の順で使用する。SpeechRecognition失敗時にOpenAIへ自動送信しない。
+- 入力テキストは最初に端末内の決定論的parserで解析し、意味・日付・数値の関連を安全に確定できない場合だけ、同意後に既存のOpenAI Responses APIへ全文を1回送る。異常値、数値不足、年なし日付、明確な対象外入力はOpenAIへ送らない。
+- 通常のSpeechRecognitionは端末内処理とは限らないため、ブラウザまたはOS提供元の認識サービスへ音声が送信される可能性を別途表示して同意を得る。`processLocally=true`かつ端末内言語パックが利用可能と確認できた場合だけ端末内処理として扱う。
+- iPhone / iPad（SafariおよびPWAを含む）は通常経路でSpeechRecognitionを開始しない。「🎙 記録」でテキスト欄を表示して同じユーザー操作内でfocusし、標準キーボードのマイクによる音声入力を案内する。入力テキストは既存のローカルparserへ渡し、`needs_ai`の場合だけOpenAI同意後にResponses APIを利用する。
+- iOS系の判定はiPhone/iPadのUA・platformに加え、iPadOSデスクトップ表示のMac platformと複数タッチ、standalone PWAの情報を組み合わせる。Android / Desktopは従来のSpeechRecognition優先経路を維持する。
+- iOSでも「高精度認識で録り直す」をユーザーが明示的に選び、OpenAI外部送信へ同意した場合だけMediaRecorder + OpenAI STTを利用する。SpeechRecognitionやキーボード入力からの自動移行は禁止する。
+- iPhone標準音声入力が「生理」を「整理」と文字起こしする場合がある。文全体が「整理（が）始まった／始まる／きた」等の生理開始表現だけで構成される場合に限り、ローカルparser内で生理開始候補へ正規化する。「部屋の整理」「書類の整理」「データ整理」等は変換しない。
+- iOSキーボード入力で対象項目を認識できなかった場合は、解析ボタン直下に対応項目（体重・体脂肪率・生理開始）を含む明示エラーを表示する。非空入力の解析操作を無反応にしない。
+- 健康入力MVPは `NEXT_PUBLIC_HEALTH_INPUT_ENABLED=true` かつVercel Preview（`NEXT_PUBLIC_VERCEL_ENV=preview`）またはローカルDevelopmentの場合だけNavigationへ表示する。Productionはflagが誤ってtrueでも非表示にする。
+- `/api/health/parse` と `/api/health/transcribe` はmiddlewareとroute本体の両方で同じfail-closed判定を認証・本文読込より先に実行し、サーバー側 `VERCEL_ENV=production` では未認証リダイレクトを含めず常に404を返す。
+- `NEXT_PUBLIC_HEALTH_INPUT_DIAGNOSTICS=true` の非Production環境だけ、MVP表記、処理経路、Supabase未保存注記、未実装保存ボタンを表示する。通常UIではこれらを表示しない。
 
 ### ファスティング計画
 

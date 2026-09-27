@@ -2,6 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import HealthRecordInput from "@/components/HealthRecordInput";
+import {
+  isHealthInputDiagnosticsEnabled,
+  isHealthInputEnabled,
+} from "@/lib/health-input/feature-flags";
+
+const healthInputFeatureContext = {
+  flag: process.env.NEXT_PUBLIC_HEALTH_INPUT_ENABLED,
+  deploymentEnvironment: process.env.NEXT_PUBLIC_VERCEL_ENV,
+  nodeEnvironment: process.env.NODE_ENV,
+};
+const healthInputEnabled = isHealthInputEnabled(healthInputFeatureContext);
+const healthInputDiagnosticsEnabled = isHealthInputDiagnosticsEnabled({
+  ...healthInputFeatureContext,
+  diagnosticsFlag: process.env.NEXT_PUBLIC_HEALTH_INPUT_DIAGNOSTICS,
+});
 
 export type NavItem =
   | "dashboard"
@@ -30,8 +46,11 @@ export default function Navigation({ active }: { active: NavItem }) {
 
   return (
     <>
+      {healthInputEnabled && (
+        <HealthRecordInput showDiagnostics={healthInputDiagnosticsEnabled} />
+      )}
       {pathname !== "/feedback" && (
-        <div className="pointer-events-none fixed bottom-[76px] left-0 right-0 z-40 mx-auto flex max-w-[430px] justify-end px-4">
+        <div className="pointer-events-none fixed bottom-[128px] left-0 right-0 z-40 mx-auto flex max-w-[430px] justify-end px-4">
           <Link
             href={`/feedback?from=${encodeURIComponent(pathname)}`}
             className="pointer-events-auto rounded-full border border-teal-200 bg-white/95 px-3 py-2 text-xs font-bold text-teal-700 shadow-sm backdrop-blur"

@@ -1,6 +1,6 @@
 # Development Status
 
-最終更新: 2026-08-09（Asia/Tokyo）
+最終更新: 2026-09-16（Asia/Tokyo）
 
 この文書は「現在どこまで開発できているか」と「次に何をするか」を記録する。恒久的な仕様、設計方針、DB互換性、安全ルール、デプロイ手順の詳細はルートの [`AGENTS.md`](../AGENTS.md) を参照する。
 
@@ -28,6 +28,48 @@
 「動作している」は、コードに実装があり、直近のVercel本番ビルドが成功したことを基準にしている。すべての機能を2026-08-08に再度E2E確認したわけではないため、要確認項目は後述する。
 
 ## 2. 直近で実装・修正した内容
+
+### MVP-01 音声・テキスト健康入力（作業ブランチ）
+
+- `feature/mvp-01-voice-health-input` で、体重・体脂肪率・生理開始を音声またはテキストから解析し、確認・修正画面へ表示する機能を追加した。Supabaseへの保存は未実装。
+- OpenAI APIは認証済みユーザーだけがNext.jsサーバーAPI経由で利用する。ブラウザへAPIキーを渡さず、解析対象本文、音声、Asia/Tokyoの基準日時以外の識別情報を送信しない。
+- 初回の外部送信前に、送信対象・目的・アプリ側で元音声と全文文字起こしを保存しないこと・プライバシーポリシーを表示し、同意を必須とした。
+- Responses APIの構造化出力を `store: false` で呼び出す。ただし、OpenAI側で一切保持されないことを意味する表現は使用せず、同社のAPIに関する公式条件に従う。
+- MediaRecorderは最大30秒、音声APIは6MB上限。録音データは文字起こしリクエスト後に参照を破棄し、DB・Storage・ログへ保存しない。
+- AI出力はJSON Schemaに加えてZodで再検証し、体重20〜500kg、体脂肪率0〜100%を外れた値、数値なし、単位不明、年なし日付を確認・修正対象にする。
+- `today`相当の日付はサーバーが `Asia/Tokyo` で決定し、今日・昨日・一昨日・年を含む年月日だけを自動確定する。
+- Vitest 3.2.4を最小テスト環境として追加。健康入力の正常系・異常系・日付処理を単体テストする。
+
+### MVP-01.1 無料音声認識優先のハイブリッド入力（作業ブランチ）
+
+- 音声認識を、確認済み端末内SpeechRecognition、通常のブラウザSpeechRecognition、ユーザーが明示的に選択したOpenAI STTの順へ変更した。SpeechRecognition失敗後は「高精度認識で録り直す」を表示し、自動で音声をOpenAIへ送信しない。
+- `processLocally`、`available()`、`install()`は存在を確認してから使用する。`ja-JP`言語パックが利用可能と確認できた場合だけ端末内処理として表示する。
+- 通常のブラウザSpeechRecognitionは端末内処理とは限らないため、ブラウザ／OS提供元のサービスへ音声が送信される可能性をOpenAIとは分けて説明し、初回利用前に同意を得る。
+- 体重、体脂肪率、生理開始は最初に端末内parserで解析する。指定の定型入力、異常値、数値不足、年なし日付、明確な対象外入力はOpenAI Responses APIを呼ばない。意味・日付・数値の関連を安全に確定できない場合だけ、OpenAI同意後に全文を1回送信する。
+- ローカル解析の日付はクライアントで `Asia/Tokyo` を明示して算出する。OpenAI fallback時は従来どおりサーバー側の基準日時を使用する。
+- 確認画面で `local_speech`、`browser_speech`、`openai_stt`、`local_parse`、`openai_parse` に対応する利用経路を確認できる。外部Analyticsには送信しない。
+- 部分fallbackとローカル・OpenAI結果のマージはMVP-01.1では実装せず、`needs_ai`の場合は全文を1回だけOpenAIへ送る。
+
+### MVP-01.2 iOSキーボード音声入力（作業ブランチ）
+
+- iPhone Safari実機では通常SpeechRecognitionのマイク起動後に認識結果を取得できなかったため、iPhone / iPad（Safari・PWAを含む）では通常経路としてSpeechRecognitionを呼ばない。
+- iOS系端末で「🎙 記録」を押すと音声入力用テキスト欄を表示して直ちにfocusし、「iPhoneのキーボードにあるマイクをタップして話してください」と案内する。Webアプリからキーボード音声入力自体をプログラム起動はしない。
+- キーボードで入力されたテキストは既存のローカルparserへ渡す。定型的な体重・体脂肪率・生理開始はOpenAI APIを呼ばず、`needs_ai`の内容だけ同意後にResponses APIへ送る。
+- iOS判定はUAだけに依存せず、platform、複数タッチによるiPadOSデスクトップ表示、standalone PWAの情報を組み合わせる。Android Chrome / Desktop Chromeは既存のSpeechRecognition優先経路を維持する。
+- iOSのOpenAI STTは「高精度認識で録り直す」をユーザーが明示的に選択し、OpenAI外部送信へ同意した場合だけ利用する。自動fallbackは行わない。
+- 確認画面の内部経路表示に `keyboard_dictation` を追加する。経路情報は外部Analyticsへ送信しない。
+- iPhone標準音声入力の実機結果に合わせ、「整理（が）始まった／始まる／きた」等、文全体が生理開始を示す限定パターンだけを `period_start` 候補へ正規化する。部屋・書類・データの整理は生理として扱わない。
+- 非空入力から対象項目を抽出できない場合は、iOS入力欄の解析ボタン直下へ「対象項目を認識できませんでした」と対応項目を表示する。キーボード表示中でも結果を確認できる位置に置く。
+- iPhone Safari実機で、体重、体脂肪率、「今日整理始まった」の生理開始、一般的な整理の対象外判定、3項目同時抽出までキーボード音声入力とローカル解析だけで確認済み。
+- masterへ解析エンジンを安全に取り込むため、健康入力UIとAPIを明示flag + 非Production環境の二重条件で保護する。ProductionではflagがtrueでもUIを表示せず、middlewareとroute本体の両方で両APIを認証・本文処理前に404とする。
+- 診断flagが有効なPreview/Developmentだけ、MVP表記、処理経路、Supabase未保存注記、未実装保存ボタンを表示する。
+
+### MVP-01の本番公開前に必須の確認
+
+- iPhone Safari / PWAでは入力欄の自動focus、キーボード表示、標準キーボード音声入力、ローカル解析、高精度再録音を実機確認する。Android ChromeではSpeechRecognitionの利用可否、通常ブラウザ認識の同意、マイク許可を確認する。両OSで高精度録音の30秒自動停止、キャンセル、録音形式、音声破棄を確認する。
+- OpenAI APIの利用条件・データ保持条件とプライバシーポリシー本文を、公開時点の公式仕様および法務要件に照らして再確認する。
+- Vercel Previewで `OPENAI_API_KEY`、`OPENAI_HEALTH_PARSE_MODEL`、`OPENAI_TRANSCRIPTION_MODEL` をサーバー側環境変数として設定し、値や健康情報がログに出ないことを確認する。
+- 同意履歴はMVP-01ではブラウザのlocalStorageに同意文バージョンのみ保存する。複数端末・同意撤回・文面改定時の運用は一般公開前に設計する。
 
 ### 複数食事時刻と自動計算
 
