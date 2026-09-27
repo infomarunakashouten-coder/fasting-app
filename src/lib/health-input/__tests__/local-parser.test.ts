@@ -9,9 +9,14 @@ describe("parseLocalHealthText", () => {
     ["今日52.6キロ", ["weight"]],
     ["昨日53キロ", ["weight"]],
     ["体脂肪23.4パーセント", ["body_fat"]],
+    ["体脂肪23.4%", ["body_fat"]],
     ["今日生理始まった", ["period_start"]],
     [
       "今日52.6キロ、体脂肪23.4パーセント、生理始まった",
+      ["weight", "body_fat", "period_start"],
+    ],
+    [
+      "今日52.6キロ、体脂肪23.4%、生理始まった",
       ["weight", "body_fat", "period_start"],
     ],
   ])("%sをOpenAIなしで解析する", (text, types) => {
@@ -35,6 +40,27 @@ describe("parseLocalHealthText", () => {
       NOW,
     );
     expect(parsed.result?.entries.every((entry) => entry.occurredOn === "2026-09-16")).toBe(true);
+  });
+
+  it.each([
+    "今日生理始まった",
+    "今日整理始まった",
+    "生理始まった",
+    "整理が始まった",
+  ])("%sを生理開始としてローカル解析する", (text) => {
+    const parsed = parseLocalHealthText(text, NOW);
+    expect(parsed.decision).toBe("local_complete");
+    expect(parsed.result?.entries).toMatchObject([{ type: "period_start" }]);
+  });
+
+  it.each([
+    "部屋の整理始まった",
+    "書類の整理を始めた",
+    "データ整理始めた",
+  ])("%sを生理開始として扱わない", (text) => {
+    const parsed = parseLocalHealthText(text, NOW);
+    expect(parsed.result?.entries).toEqual([]);
+    expect(parsed.result?.hasUnsupportedContent).toBe(true);
   });
 
   it("対象外だけの入力をOpenAI fallbackにしない", () => {

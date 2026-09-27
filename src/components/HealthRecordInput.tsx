@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { getNoSupportedHealthEntryFeedback } from "@/lib/health-input/feedback";
 import { parseLocalHealthText } from "@/lib/health-input/local-parser";
 import {
   AI_CONSENT_VERSION,
@@ -213,7 +214,12 @@ export default function HealthRecordInput() {
 
     if (!local.result || local.result.entries.length === 0) {
       setHasUnsupportedContent(Boolean(local.result?.hasUnsupportedContent));
-      setError("体重・体脂肪率・生理開始の記録を見つけられませんでした。");
+      setError(
+        getNoSupportedHealthEntryFeedback(
+          trimmed,
+          local.result?.entries.length ?? 0,
+        ) ?? "入力内容を解析できませんでした。もう一度お試しください。",
+      );
       setStage("input");
       return;
     }
@@ -744,6 +750,7 @@ export default function HealthRecordInput() {
                     text={text}
                     busy={busy}
                     parsing={stage === "parsing"}
+                    error={error}
                     onTextChange={setText}
                     onParse={() => void parseText(text, ["keyboard_dictation"])}
                     onHighAccuracy={requestOpenAIRecording}
@@ -770,11 +777,12 @@ export default function HealthRecordInput() {
               </>
             )}
 
-            {error && (
-              <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
+            {error &&
+              !(mode === "voice" && usesIOSKeyboardDictation && stage === "input") && (
+                <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  {error}
+                </div>
+              )}
           </section>
         </div>
       )}
@@ -894,6 +902,7 @@ function IOSKeyboardDictationPanel({
   text,
   busy,
   parsing,
+  error,
   onTextChange,
   onParse,
   onHighAccuracy,
@@ -902,6 +911,7 @@ function IOSKeyboardDictationPanel({
   text: string;
   busy: boolean;
   parsing: boolean;
+  error: string;
   onTextChange: (text: string) => void;
   onParse: () => void;
   onHighAccuracy: () => void;
@@ -942,6 +952,15 @@ function IOSKeyboardDictationPanel({
       >
         {parsing ? "解析しています…" : "内容を解析する"}
       </button>
+      {error && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-700"
+        >
+          {error}
+        </div>
+      )}
       <button
         type="button"
         onClick={onHighAccuracy}

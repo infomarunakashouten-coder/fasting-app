@@ -87,6 +87,8 @@
 - iPhone / iPad（SafariおよびPWAを含む）は通常経路でSpeechRecognitionを開始しない。「🎙 記録」でテキスト欄を表示して同じユーザー操作内でfocusし、標準キーボードのマイクによる音声入力を案内する。入力テキストは既存のローカルparserへ渡し、`needs_ai`の場合だけOpenAI同意後にResponses APIを利用する。
 - iOS系の判定はiPhone/iPadのUA・platformに加え、iPadOSデスクトップ表示のMac platformと複数タッチ、standalone PWAの情報を組み合わせる。Android / Desktopは従来のSpeechRecognition優先経路を維持する。
 - iOSでも「高精度認識で録り直す」をユーザーが明示的に選び、OpenAI外部送信へ同意した場合だけMediaRecorder + OpenAI STTを利用する。SpeechRecognitionやキーボード入力からの自動移行は禁止する。
+- iPhone標準音声入力が「生理」を「整理」と文字起こしする場合がある。文全体が「整理（が）始まった／始まる／きた」等の生理開始表現だけで構成される場合に限り、ローカルparser内で生理開始候補へ正規化する。「部屋の整理」「書類の整理」「データ整理」等は変換しない。
+- iOSキーボード入力で対象項目を認識できなかった場合は、解析ボタン直下に対応項目（体重・体脂肪率・生理開始）を含む明示エラーを表示する。非空入力の解析操作を無反応にしない。
 
 ### ファスティング計画
 

@@ -22,7 +22,10 @@ const NUMBER_EXPRESSION = /-?\d+(?:\.\d+)?/g;
 const WEIGHT_VALUE = /(-?\d+(?:\.\d+)?)\s*(?:kg|キログラム|キロ)/gi;
 const BODY_FAT_VALUE =
   /体脂肪(?:率)?\s*(?:は|が|:|：)?\s*(-?\d+(?:\.\d+)?)\s*(?:%|パーセント)/gi;
-const PERIOD_START = /生理(?:が|は)?\s*(?:始まった|始まりました|開始した|開始しました|きた|来た)/;
+const PERIOD_START =
+  /生理(?:が|は)?\s*(?:始まった|始まりました|始まる|開始した|開始しました|きた|来た)/;
+const PERIOD_START_HOMOPHONE =
+  /^整理(?:が|は)?\s*(?:始まった|始まりました|始まる|開始した|開始しました|きた|来た)$/;
 const PERIOD_NEGATION = /生理[^、。,.，\n]*(?:始まって(?:い)?ない|開始して(?:い)?ない|まだ|じゃない|ではない)/;
 const COMPLEX_MARKERS =
   /(?:じゃなく|ではなく|訂正|間違|より|増え|減っ|減り|たぶん|多分|かも|くらい|ぐらい|およそ|約\s*\d)/;
@@ -54,7 +57,9 @@ export function parseLocalHealthText(
     }
     if (dateExpressions[0]) activeDateExpression = dateExpressions[0];
 
-    const withoutDate = segment.replace(DATE_EXPRESSION, " ").trim();
+    const withoutDate = normalizePeriodStartHomophone(
+      segment.replace(DATE_EXPRESSION, " ").trim(),
+    );
     const hasSupportedHint =
       /体重|kg|キログラム|キロ|体脂肪|生理/i.test(withoutDate);
     if (hasSupportedHint && COMPLEX_MARKERS.test(withoutDate)) {
@@ -165,4 +170,9 @@ export function normalizeHealthText(input: string): string {
     .replace(/\.(?!\d)/g, "。")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizePeriodStartHomophone(segment: string): string {
+  if (!PERIOD_START_HOMOPHONE.test(segment)) return segment;
+  return segment.replace(/^整理/, "生理");
 }
