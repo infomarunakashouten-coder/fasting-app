@@ -50,9 +50,18 @@
 - 確認画面で `local_speech`、`browser_speech`、`openai_stt`、`local_parse`、`openai_parse` に対応する利用経路を確認できる。外部Analyticsには送信しない。
 - 部分fallbackとローカル・OpenAI結果のマージはMVP-01.1では実装せず、`needs_ai`の場合は全文を1回だけOpenAIへ送る。
 
+### MVP-01.2 iOSキーボード音声入力（作業ブランチ）
+
+- iPhone Safari実機では通常SpeechRecognitionのマイク起動後に認識結果を取得できなかったため、iPhone / iPad（Safari・PWAを含む）では通常経路としてSpeechRecognitionを呼ばない。
+- iOS系端末で「🎙 記録」を押すと音声入力用テキスト欄を表示して直ちにfocusし、「iPhoneのキーボードにあるマイクをタップして話してください」と案内する。Webアプリからキーボード音声入力自体をプログラム起動はしない。
+- キーボードで入力されたテキストは既存のローカルparserへ渡す。定型的な体重・体脂肪率・生理開始はOpenAI APIを呼ばず、`needs_ai`の内容だけ同意後にResponses APIへ送る。
+- iOS判定はUAだけに依存せず、platform、複数タッチによるiPadOSデスクトップ表示、standalone PWAの情報を組み合わせる。Android Chrome / Desktop Chromeは既存のSpeechRecognition優先経路を維持する。
+- iOSのOpenAI STTは「高精度認識で録り直す」をユーザーが明示的に選択し、OpenAI外部送信へ同意した場合だけ利用する。自動fallbackは行わない。
+- 確認画面の内部経路表示に `keyboard_dictation` を追加する。経路情報は外部Analyticsへ送信しない。
+
 ### MVP-01の本番公開前に必須の確認
 
-- iPhone Safari、Android ChromeでSpeechRecognitionの利用可否、通常ブラウザ認識の同意、マイク許可、30秒自動停止、キャンセル、認識失敗後の高精度再録音、録音形式、音声破棄を実機確認する。
+- iPhone Safari / PWAでは入力欄の自動focus、キーボード表示、標準キーボード音声入力、ローカル解析、高精度再録音を実機確認する。Android ChromeではSpeechRecognitionの利用可否、通常ブラウザ認識の同意、マイク許可を確認する。両OSで高精度録音の30秒自動停止、キャンセル、録音形式、音声破棄を確認する。
 - OpenAI APIの利用条件・データ保持条件とプライバシーポリシー本文を、公開時点の公式仕様および法務要件に照らして再確認する。
 - Vercel Previewで `OPENAI_API_KEY`、`OPENAI_HEALTH_PARSE_MODEL`、`OPENAI_TRANSCRIPTION_MODEL` をサーバー側環境変数として設定し、値や健康情報がログに出ないことを確認する。
 - 同意履歴はMVP-01ではブラウザのlocalStorageに同意文バージョンのみ保存する。複数端末・同意撤回・文面改定時の運用は一般公開前に設計する。

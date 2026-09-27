@@ -74,7 +74,7 @@
 - 14/30/90/365日のグラフ、詳細グラフ、月次レポート。
 - 最新値をプロフィールにも同期。削除時は残っている最新記録から再計算。
 
-### 音声・テキスト健康入力（MVP-01.1）
+### 音声・テキスト健康入力（MVP-01.2）
 
 - 固定下部ナビの上に「🎙 記録」ボタンを置き、体重・体脂肪率・生理開始だけを解析して確認・修正画面へ表示する。
 - MVP-01ではSupabaseへ保存しない。既存の `daily_records` / `weight_records` と保存処理には接続しない。
@@ -84,6 +84,9 @@
 - 音声認識は、利用可能と確認できた端末内SpeechRecognition、通常のブラウザSpeechRecognition、ユーザーが明示的に選んだOpenAI高精度音声認識の順で使用する。SpeechRecognition失敗時にOpenAIへ自動送信しない。
 - 入力テキストは最初に端末内の決定論的parserで解析し、意味・日付・数値の関連を安全に確定できない場合だけ、同意後に既存のOpenAI Responses APIへ全文を1回送る。異常値、数値不足、年なし日付、明確な対象外入力はOpenAIへ送らない。
 - 通常のSpeechRecognitionは端末内処理とは限らないため、ブラウザまたはOS提供元の認識サービスへ音声が送信される可能性を別途表示して同意を得る。`processLocally=true`かつ端末内言語パックが利用可能と確認できた場合だけ端末内処理として扱う。
+- iPhone / iPad（SafariおよびPWAを含む）は通常経路でSpeechRecognitionを開始しない。「🎙 記録」でテキスト欄を表示して同じユーザー操作内でfocusし、標準キーボードのマイクによる音声入力を案内する。入力テキストは既存のローカルparserへ渡し、`needs_ai`の場合だけOpenAI同意後にResponses APIを利用する。
+- iOS系の判定はiPhone/iPadのUA・platformに加え、iPadOSデスクトップ表示のMac platformと複数タッチ、standalone PWAの情報を組み合わせる。Android / Desktopは従来のSpeechRecognition優先経路を維持する。
+- iOSでも「高精度認識で録り直す」をユーザーが明示的に選び、OpenAI外部送信へ同意した場合だけMediaRecorder + OpenAI STTを利用する。SpeechRecognitionやキーボード入力からの自動移行は禁止する。
 
 ### ファスティング計画
 

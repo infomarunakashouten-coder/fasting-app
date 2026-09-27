@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { parseLocalHealthText } from "@/lib/health-input/local-parser";
 import {
@@ -15,6 +16,7 @@ import {
   HEALTH_ISSUE_MESSAGES,
   validateEditableHealthEntry,
 } from "@/lib/health-input/validation";
+import { isIOSFamilyDevice } from "@/lib/ios-device";
 import {
   getOnDeviceAvailability,
   getSpeechRecognitionSupport,
@@ -56,6 +58,7 @@ const ENTRY_LABELS = {
 } as const;
 
 const PATH_LABELS: Record<SpeechProcessingPath, string> = {
+  keyboard_dictation: "キーボード音声入力",
   local_speech: "端末内音声認識",
   browser_speech: "ブラウザ音声認識",
   openai_stt: "OpenAI高精度音声認識",
@@ -67,6 +70,7 @@ export default function HealthRecordInput() {
   const [isOpen, setIsOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("input");
   const [mode, setMode] = useState<InputMode>("voice");
+  const [usesIOSKeyboardDictation, setUsesIOSKeyboardDictation] = useState(false);
   const [text, setText] = useState("");
   const [entries, setEntries] = useState<HealthEntry[]>([]);
   const [hasUnsupportedContent, setHasUnsupportedContent] = useState(false);
@@ -88,15 +92,40 @@ export default function HealthRecordInput() {
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => () => releaseTransientData(), []);
 
   const openModal = () => {
-    setStage("input");
-    setConsentChecked(false);
-    setProcessingPaths([]);
-    setError("");
-    setIsOpen(true);
+    const iosKeyboardDictation = isIOSFamilyDevice(
+      navigator as Navigator & {
+        standalone?: boolean;
+        userAgentData?: { platform?: string };
+      },
+    );
+    flushSync(() => {
+      setStage("input");
+      setMode("voice");
+      setUsesIOSKeyboardDictation(iosKeyboardDictation);
+      setConsentChecked(false);
+      setProcessingPaths([]);
+      setError("");
+      setIsOpen(true);
+    });
+    if (iosKeyboardDictation) {
+      textInputRef.current?.focus({ preventScroll: true });
+    }
+  };
+
+  const selectMode = (nextMode: InputMode) => {
+    flushSync(() => {
+      setMode(nextMode);
+      setError("");
+      setStage("input");
+    });
+    if (nextMode === "text" || (nextMode === "voice" && usesIOSKeyboardDictation)) {
+      textInputRef.current?.focus({ preventScroll: true });
+    }
   };
 
   const closeModal = () => {
@@ -615,7 +644,7 @@ export default function HealthRecordInput() {
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-teal-700">MVP-01.1 プレビュー</p>
+                <p className="text-xs font-bold text-teal-700">MVP-01.2 プレビュー</p>
                 <h2 id="health-record-title" className="text-xl font-bold text-stone-800">
                   健康記録
                 </h2>
@@ -668,10 +697,7 @@ export default function HealthRecordInput() {
                       key={item}
                       type="button"
                       disabled={busy}
-                      onClick={() => {
-                        setMode(item);
-                        setError("");
-                      }}
+                      onClick={() => selectMode(item)}
                       className={`min-h-11 rounded-xl text-sm font-bold ${
                         mode === item ? "bg-white text-teal-700 shadow-sm" : "text-stone-500"
                       }`}
@@ -687,6 +713,7 @@ export default function HealthRecordInput() {
                       記録する内容
                     </label>
                     <textarea
+                      ref={textInputRef}
                       id="health-record-text"
                       value={text}
                       disabled={busy}
@@ -711,6 +738,16 @@ export default function HealthRecordInput() {
                       まず端末内で解析し、複雑な入力だけ同意後にOpenAIを使用します。
                     </p>
                   </div>
+                ) : usesIOSKeyboardDictation ? (
+                  <IOSKeyboardDictationPanel
+                    textareaRef={textInputRef}
+                    text={text}
+                    busy={busy}
+                    parsing={stage === "parsing"}
+                    onTextChange={setText}
+                    onParse={() => void parseText(text, ["keyboard_dictation"])}
+                    onHighAccuracy={requestOpenAIRecording}
+                  />
                 ) : (
                   <VoicePanel
                     stage={stage}
@@ -726,9 +763,7 @@ export default function HealthRecordInput() {
                     onStopRecording={stopRecording}
                     onCancelRecording={cancelRecording}
                     onUseText={() => {
-                      setMode("text");
-                      setStage("input");
-                      setError("");
+                      selectMode("text");
                     }}
                   />
                 )}
@@ -850,6 +885,74 @@ function ConsentShell({
         <button type="button" onClick={onCancel} className="min-h-12 rounded-2xl border border-stone-300 font-bold text-stone-600">戻る</button>
         <button type="button" onClick={onAgree} disabled={!checked} className="min-h-12 rounded-2xl bg-teal-600 font-bold text-white disabled:bg-stone-300">同意して続ける</button>
       </div>
+    </div>
+  );
+}
+
+function IOSKeyboardDictationPanel({
+  textareaRef,
+  text,
+  busy,
+  parsing,
+  onTextChange,
+  onParse,
+  onHighAccuracy,
+}: {
+  textareaRef: { current: HTMLTextAreaElement | null };
+  text: string;
+  busy: boolean;
+  parsing: boolean;
+  onTextChange: (text: string) => void;
+  onParse: () => void;
+  onHighAccuracy: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-stone-700">
+        <p className="font-bold text-teal-800">
+          iPhoneのキーボードにあるマイクをタップして話してください
+        </p>
+        <p className="mt-2 text-xs leading-5 text-stone-600">
+          入力後、このアプリ内で内容を解析します。複雑な内容だけ、同意後にOpenAI解析をご案内します。
+        </p>
+      </div>
+      <label htmlFor="health-record-ios-dictation" className="mb-2 block text-sm font-bold text-stone-700">
+        音声入力する内容
+      </label>
+      <textarea
+        ref={textareaRef}
+        id="health-record-ios-dictation"
+        value={text}
+        disabled={busy}
+        maxLength={MAX_HEALTH_TEXT_LENGTH}
+        onChange={(event) => onTextChange(event.target.value)}
+        rows={5}
+        enterKeyHint="done"
+        placeholder="例：今日52.6キロ、体脂肪23.4パーセント。今日生理始まった"
+        className="w-full resize-none rounded-2xl border border-stone-200 bg-white p-4 text-base text-stone-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:opacity-60"
+      />
+      <p className="mt-1 text-right text-xs text-stone-400">
+        {text.length} / {MAX_HEALTH_TEXT_LENGTH}
+      </p>
+      <button
+        type="button"
+        onClick={onParse}
+        disabled={busy || !text.trim()}
+        className="mt-3 min-h-12 w-full rounded-2xl bg-teal-600 px-4 font-bold text-white disabled:bg-stone-300"
+      >
+        {parsing ? "解析しています…" : "内容を解析する"}
+      </button>
+      <button
+        type="button"
+        onClick={onHighAccuracy}
+        disabled={busy}
+        className="mt-3 min-h-11 w-full rounded-2xl border border-teal-300 bg-white px-4 text-sm font-bold text-teal-700 disabled:opacity-50"
+      >
+        高精度認識で録り直す
+      </button>
+      <p className="mt-2 text-xs leading-5 text-stone-500">
+        高精度認識は、選択した場合だけ録音し、同意後にOpenAIへ送信します。
+      </p>
     </div>
   );
 }
@@ -993,7 +1096,7 @@ function ConfirmationPanel({
         </p>
       )}
       {hasUnsupportedContent && (
-        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">MVP-01.1の対象外の内容は記録候補に含めていません。</p>
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">MVP-01.2の対象外の内容は記録候補に含めていません。</p>
       )}
       <div className="mt-4 space-y-3">
         {entries.map((entry, index) => {
@@ -1039,9 +1142,9 @@ function ConfirmationPanel({
         })}
       </div>
       <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-100 p-3 text-center text-xs text-stone-600">
-        MVP-01.1では確認までです。Supabaseへの保存は行いません。
+        MVP-01.2では確認までです。Supabaseへの保存は行いません。
       </div>
-      <button type="button" disabled className="mt-3 min-h-12 w-full rounded-2xl bg-stone-300 font-bold text-stone-500">保存する（MVP-01.1では未実装）</button>
+      <button type="button" disabled className="mt-3 min-h-12 w-full rounded-2xl bg-stone-300 font-bold text-stone-500">保存する（MVP-01.2では未実装）</button>
       {hasIssues && <p className="mt-2 text-center text-xs text-rose-700">赤字の項目を修正して内容を確認してください。</p>}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <button type="button" onClick={onCancel} className="min-h-12 rounded-2xl border border-stone-300 font-bold text-stone-600">キャンセル</button>

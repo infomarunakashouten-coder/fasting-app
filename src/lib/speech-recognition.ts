@@ -1,4 +1,5 @@
 export type SpeechProcessingPath =
+  | "keyboard_dictation"
   | "local_speech"
   | "browser_speech"
   | "openai_stt"
