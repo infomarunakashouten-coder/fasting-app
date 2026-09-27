@@ -20,7 +20,7 @@
 - 必須環境変数：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`。課金切替：`NEXT_PUBLIC_BILLING_ENABLED`。
 - MVP-01の音声・テキスト健康入力では、サーバー専用の `OPENAI_API_KEY` を使用する。モデルは `OPENAI_HEALTH_PARSE_MODEL` と `OPENAI_TRANSCRIPTION_MODEL` で上書き可能。これらに `NEXT_PUBLIC_` を付けない。
 - 健康入力の実行時検証はZod 4、単体テストはVitest 3.2.4を使用する。
-- 自動テスト基盤は現時点で存在しない。最低限 `npx.cmd tsc --noEmit` と本番相当の `npm.cmd run build` を行う。
+- Vitestによる自動テスト基盤あり。変更後は `npm.cmd test`、`npx.cmd tsc --noEmit --incremental false` と本番相当の `npm.cmd run build` を行う。
 
 ## 3. 重要なフォルダ／ファイル
 
@@ -155,6 +155,10 @@
 
 ## 7. データ保存と互換性
 
+- 2026-09-28実Production DB確認では `daily_records` は不存在、canonicalは `weight_records`（weightは現時点でNOT NULL）。下記の新旧テーブル記述は既存コードの互換層であり、実DBへdaily_recordsを新設する根拠にしない。profilesにも健康現在値列はない。
+- MVP-02 Step Aではread互換だけを先行する。`src/lib/latest-measurements.ts` でweight/body_fat_percentageをそれぞれ非NULL条件・日付降順で取得する。履歴30/400件のlimitや表示期間から現在値を導出しない。項目ごとの値・測定日を保持し、欠測を0へ変換しない。
+- Step Aは既存手入力/save helper/DB schemaを変更しない。健康入力は引き続きProduction非公開・保存未実装。`docs/designs/` のSQLは実行阻止guard付き設計案であり適用用migrationではない。
+- DB NULL化はread互換PRのProduction確認後に別途承認する。適用後の保存機能は別branch/PRで実装し、SQLを勝手に実行しない。
 - すべての健康・プロフィールデータは Supabase Postgres。ローカルストレージはアバター補助、生年月日互換、ダウングレード予約など限定用途。
 - RLSを前提とし、健康データは `auth.uid()` と一致する本人のみ操作可能。管理処理は管理者RPC／制限されたポリシーを使う。
 - 主要テーブル：

@@ -266,10 +266,9 @@ export default function SettingsPage() {
       return;
     }
     const latestRecordedWeight =
-      toNumber(latestNewRecords?.[0]?.weight_kg) ??
-      toNumber(latestOldRecords?.[0]?.weight);
+      toNumber(latestOldRecords?.[0]?.weight) ??
+      toNumber(latestNewRecords?.[0]?.weight_kg);
     if (
-      toNumber(row.current_weight_kg ?? row.current_weight) === null &&
       latestRecordedWeight !== null
     ) {
       row.current_weight_kg = latestRecordedWeight;

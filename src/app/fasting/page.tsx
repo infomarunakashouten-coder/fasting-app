@@ -8,6 +8,7 @@ import { hasPremiumAccess } from "@/lib/billing";
 import { getFastingEligibility } from "@/lib/fasting-eligibility";
 import { getLatestVisibleFastingPlan } from "@/lib/fasting-plan";
 import { getProfileCurrentWeight } from "@/lib/profile-weight";
+import { measurementNumber } from "@/lib/latest-measurements";
 import { calcBMI, createClient, getTodayString } from "@/lib/supabase";
 import { getUserFacingError } from "@/lib/user-facing-error";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
@@ -405,13 +406,11 @@ export default function FastingPage() {
 
     const plan = getLatestVisibleFastingPlan(plans);
     const mergedProfile = mergeProfileRows(newProfile, oldProfile);
-    const latestRecordedWeight = Number(
-      latestNewRecords?.[0]?.weight_kg ?? latestOldRecords?.[0]?.weight
-    );
+    const latestRecordedWeight = measurementNumber(latestOldRecords?.[0]?.weight) ??
+      measurementNumber(latestNewRecords?.[0]?.weight_kg);
     if (
       mergedProfile &&
-      getProfileCurrentWeight(mergedProfile) === null &&
-      Number.isFinite(latestRecordedWeight) &&
+      latestRecordedWeight !== null &&
       latestRecordedWeight > 0
     ) {
       mergedProfile.current_weight_kg = latestRecordedWeight;
