@@ -9,7 +9,7 @@ export function isHealthInputEnabled({
   deploymentEnvironment,
   nodeEnvironment,
 }: HealthInputFeatureContext): boolean {
-  if (flag !== "true") return false;
+  if (deploymentEnvironment === "production" || flag !== "true") return false;
   return deploymentEnvironment === "preview" || nodeEnvironment === "development";
 }
 

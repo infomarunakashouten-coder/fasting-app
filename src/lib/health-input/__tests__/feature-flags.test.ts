@@ -7,6 +7,13 @@ import {
 } from "../feature-flags";
 
 describe("health input feature flags", () => {
+  it("ProductionをDevelopmentのNODE_ENVより優先して拒否する", () => {
+    expect(isHealthInputEnabled({
+      flag: "true",
+      deploymentEnvironment: "production",
+      nodeEnvironment: "development",
+    })).toBe(false);
+  });
   it.each<{
     name: string;
     context: HealthInputFeatureContext;
