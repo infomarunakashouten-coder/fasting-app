@@ -67,7 +67,11 @@ const PATH_LABELS: Record<SpeechProcessingPath, string> = {
   openai_parse: "OpenAI解析",
 };
 
-export default function HealthRecordInput() {
+export default function HealthRecordInput({
+  showDiagnostics,
+}: {
+  showDiagnostics: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("input");
   const [mode, setMode] = useState<InputMode>("voice");
@@ -650,7 +654,9 @@ export default function HealthRecordInput() {
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-teal-700">MVP-01.2 プレビュー</p>
+                {showDiagnostics && (
+                  <p className="text-xs font-bold text-teal-700">MVP-01.2 プレビュー</p>
+                )}
                 <h2 id="health-record-title" className="text-xl font-bold text-stone-800">
                   健康記録
                 </h2>
@@ -685,6 +691,7 @@ export default function HealthRecordInput() {
                 entries={entries}
                 hasUnsupportedContent={hasUnsupportedContent}
                 processingPaths={processingPaths}
+                showDiagnostics={showDiagnostics}
                 onUpdate={updateEntry}
                 onRemove={removeEntry}
                 onBack={() => {
@@ -1091,6 +1098,7 @@ function ConfirmationPanel({
   entries,
   hasUnsupportedContent,
   processingPaths,
+  showDiagnostics,
   onUpdate,
   onRemove,
   onBack,
@@ -1099,6 +1107,7 @@ function ConfirmationPanel({
   entries: HealthEntry[];
   hasUnsupportedContent: boolean;
   processingPaths: SpeechProcessingPath[];
+  showDiagnostics: boolean;
   onUpdate: (index: number, patch: Partial<HealthEntry>) => void;
   onRemove: (index: number) => void;
   onBack: () => void;
@@ -1108,14 +1117,18 @@ function ConfirmationPanel({
   return (
     <div>
       <h3 className="font-bold text-stone-800">この内容を確認してください</h3>
-      <p className="mt-1 text-xs text-stone-500">解析結果はまだ保存されていません。数値と日付を修正できます。</p>
-      {processingPaths.length > 0 && (
+      <p className="mt-1 text-xs text-stone-500">
+        {showDiagnostics
+          ? "解析結果はまだ保存されていません。数値と日付を修正できます。"
+          : "数値と日付を修正できます。"}
+      </p>
+      {showDiagnostics && processingPaths.length > 0 && (
         <p className="mt-3 rounded-xl bg-teal-50 p-3 text-xs text-teal-800">
           処理経路：{processingPaths.map((path) => PATH_LABELS[path]).join(" → ")}
         </p>
       )}
       {hasUnsupportedContent && (
-        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">MVP-01.2の対象外の内容は記録候補に含めていません。</p>
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">対象外の内容は記録候補に含めていません。</p>
       )}
       <div className="mt-4 space-y-3">
         {entries.map((entry, index) => {
@@ -1160,10 +1173,14 @@ function ConfirmationPanel({
           );
         })}
       </div>
-      <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-100 p-3 text-center text-xs text-stone-600">
-        MVP-01.2では確認までです。Supabaseへの保存は行いません。
-      </div>
-      <button type="button" disabled className="mt-3 min-h-12 w-full rounded-2xl bg-stone-300 font-bold text-stone-500">保存する（MVP-01.2では未実装）</button>
+      {showDiagnostics && (
+        <>
+          <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-100 p-3 text-center text-xs text-stone-600">
+            MVP-01.2では確認までです。Supabaseへの保存は行いません。
+          </div>
+          <button type="button" disabled className="mt-3 min-h-12 w-full rounded-2xl bg-stone-300 font-bold text-stone-500">保存する（MVP-01.2では未実装）</button>
+        </>
+      )}
       {hasIssues && <p className="mt-2 text-center text-xs text-rose-700">赤字の項目を修正して内容を確認してください。</p>}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <button type="button" onClick={onCancel} className="min-h-12 rounded-2xl border border-stone-300 font-bold text-stone-600">キャンセル</button>

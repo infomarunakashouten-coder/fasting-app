@@ -9,11 +9,16 @@ import {
   MAX_AUDIO_BYTES,
 } from "@/lib/health-input/audio";
 import { getOpenAIClient } from "@/lib/health-input/openai-provider";
+import { isHealthInputEnabled } from "@/lib/health-input/feature-flags";
 import { createServerClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (!healthInputApiEnabled()) {
+    return safeError("NOT_FOUND", 404);
+  }
+
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -67,6 +72,14 @@ export async function POST(request: Request) {
   } catch {
     return safeError("TRANSCRIPTION_UNAVAILABLE", 503);
   }
+}
+
+function healthInputApiEnabled() {
+  return isHealthInputEnabled({
+    flag: process.env.NEXT_PUBLIC_HEALTH_INPUT_ENABLED,
+    deploymentEnvironment: process.env.VERCEL_ENV,
+    nodeEnvironment: process.env.NODE_ENV,
+  });
 }
 
 function safeError(code: string, status: number) {

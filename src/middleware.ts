@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { isHealthInputEnabled } from "@/lib/health-input/feature-flags";
+
 const AUTH_PATHS = [
   "/auth/login",
   "/auth/register",
@@ -19,8 +21,26 @@ const ALWAYS_PUBLIC_PATHS = [
 ];
 
 const ALWAYS_PUBLIC_PREFIXES = ["/icons/"];
+const HEALTH_INPUT_API_PATHS = [
+  "/api/health/parse",
+  "/api/health/transcribe",
+];
 
 export async function middleware(req: NextRequest) {
+  if (
+    HEALTH_INPUT_API_PATHS.includes(req.nextUrl.pathname) &&
+    !isHealthInputEnabled({
+      flag: process.env.NEXT_PUBLIC_HEALTH_INPUT_ENABLED,
+      deploymentEnvironment: process.env.VERCEL_ENV,
+      nodeEnvironment: process.env.NODE_ENV,
+    })
+  ) {
+    return NextResponse.json(
+      { error: "NOT_FOUND" },
+      { status: 404, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
   let response = NextResponse.next({ request: req });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

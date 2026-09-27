@@ -89,6 +89,9 @@
 - iOSでも「高精度認識で録り直す」をユーザーが明示的に選び、OpenAI外部送信へ同意した場合だけMediaRecorder + OpenAI STTを利用する。SpeechRecognitionやキーボード入力からの自動移行は禁止する。
 - iPhone標準音声入力が「生理」を「整理」と文字起こしする場合がある。文全体が「整理（が）始まった／始まる／きた」等の生理開始表現だけで構成される場合に限り、ローカルparser内で生理開始候補へ正規化する。「部屋の整理」「書類の整理」「データ整理」等は変換しない。
 - iOSキーボード入力で対象項目を認識できなかった場合は、解析ボタン直下に対応項目（体重・体脂肪率・生理開始）を含む明示エラーを表示する。非空入力の解析操作を無反応にしない。
+- 健康入力MVPは `NEXT_PUBLIC_HEALTH_INPUT_ENABLED=true` かつVercel Preview（`NEXT_PUBLIC_VERCEL_ENV=preview`）またはローカルDevelopmentの場合だけNavigationへ表示する。Productionはflagが誤ってtrueでも非表示にする。
+- `/api/health/parse` と `/api/health/transcribe` はmiddlewareとroute本体の両方で同じfail-closed判定を認証・本文読込より先に実行し、サーバー側 `VERCEL_ENV=production` では未認証リダイレクトを含めず常に404を返す。
+- `NEXT_PUBLIC_HEALTH_INPUT_DIAGNOSTICS=true` の非Production環境だけ、MVP表記、処理経路、Supabase未保存注記、未実装保存ボタンを表示する。通常UIではこれらを表示しない。
 
 ### ファスティング計画
 
