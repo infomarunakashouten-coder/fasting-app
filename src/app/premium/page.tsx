@@ -12,6 +12,7 @@ import {
 } from "@/lib/billing";
 import { getFastingEligibility } from "@/lib/fasting-eligibility";
 import { getProfileCurrentWeight } from "@/lib/profile-weight";
+import { measurementNumber } from "@/lib/latest-measurements";
 import { calcBMI, createClient, isPaidPlan } from "@/lib/supabase";
 import {
   getSubscriptionPeriodEnd,
@@ -150,12 +151,10 @@ export default function PremiumPage() {
       return;
     }
 
-    const latestRecordedWeight = Number(
-      latestNewRecord.data?.[0]?.weight_kg ?? latestOldRecord.data?.[0]?.weight
-    );
+    const latestRecordedWeight = measurementNumber(latestOldRecord.data?.[0]?.weight) ??
+      measurementNumber(latestNewRecord.data?.[0]?.weight_kg);
     if (
-      getProfileCurrentWeight(mergedProfile) === null &&
-      Number.isFinite(latestRecordedWeight) &&
+      latestRecordedWeight !== null &&
       latestRecordedWeight > 0
     ) {
       mergedProfile.current_weight_kg = latestRecordedWeight;

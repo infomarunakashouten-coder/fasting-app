@@ -15,7 +15,7 @@ import Navigation from "@/components/Navigation";
 import { BILLING_ENABLED, PREMIUM_PRICE_LABEL, hasPremiumAccess } from "@/lib/billing";
 import { getLatestVisibleFastingPlan } from "@/lib/fasting-plan";
 import { mergeWeightRecordsByDate } from "@/lib/merge-weight-records";
-import { getProfileCurrentWeight } from "@/lib/profile-weight";
+import { emptyLatestMeasurements, loadLatestMeasurements, type LatestMeasurements } from "@/lib/latest-measurements";
 import { createClient, getBMICategory, getTodayString, isPaidPlan } from "@/lib/supabase";
 import {
   getSubscriptionPeriodEnd,
@@ -177,6 +177,7 @@ export default function DashboardPage() {
 
   const [profile, setProfile] = useState<(Profile & Record<string, any>) | null>(null);
   const [records, setRecords] = useState<Array<DailyRecord & Record<string, any>>>([]);
+  const [latestMeasurements, setLatestMeasurements] = useState<LatestMeasurements>(emptyLatestMeasurements);
   const [plan, setPlan] = useState<(FastingPlan & Record<string, any>) | null>(null);
   const [weight, setWeight] = useState("");
   const [bodyFat, setBodyFat] = useState("");
@@ -209,6 +210,7 @@ export default function DashboardPage() {
       { data: recordData, error: recordError },
       { data: oldRecordData, error: oldRecordError },
       { data: planData, error: planError },
+      latest,
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
@@ -230,11 +232,12 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10),
+      loadLatestMeasurements(supabase, user.id),
     ]);
 
     const profileError = profileByNewIdError && profileByOldUserIdError ? profileByNewIdError : null;
     const recordsError = recordError && oldRecordError ? recordError : null;
-    const error = profileError ?? recordsError ?? planError;
+    const error = profileError ?? recordsError ?? planError ?? latest.error;
     if (error) {
       setLoadError(
         getUserFacingError(
@@ -266,6 +269,7 @@ export default function DashboardPage() {
         "/avatar_01.png"
     );
     setRecords(sourceRecords);
+    setLatestMeasurements(latest);
     setPlan(getLatestVisibleFastingPlan(planData));
     setWeight((todayRecord?.weight_kg ?? todayRecord?.weight ?? "").toString());
     setBodyFat((todayRecord?.body_fat_percentage ?? "").toString());
@@ -344,11 +348,8 @@ export default function DashboardPage() {
     loadData();
   };
 
-  const latestRecord = records[0];
-  const currentWeight =
-    toNumber(latestRecord?.weight_kg) ??
-    toNumber(latestRecord?.weight) ??
-    getProfileCurrentWeight(profile);
+  const currentWeight = latestMeasurements.weight?.value ?? null;
+  const currentBodyFat = latestMeasurements.bodyFat?.value ?? null;
   const targetWeight = toNumber(profile?.goal_weight_kg) ?? toNumber(profile?.goal_weight);
   const heightCm = toNumber(profile?.height_cm) ?? toNumber(profile?.height);
   const heightM = heightCm ? heightCm / 100 : null;
@@ -373,8 +374,8 @@ export default function DashboardPage() {
             month: "numeric",
             day: "numeric",
           }),
-          weight: record.weight_kg ?? record.weight,
-          bodyFat: record.body_fat_percentage,
+          weight: toNumber(record.weight_kg ?? record.weight),
+          bodyFat: toNumber(record.body_fat_percentage),
         })),
     [records]
   );
@@ -438,6 +439,13 @@ export default function DashboardPage() {
                 {currentWeight ? currentWeight.toFixed(1) : "--"}
               </p>
               <p className="text-base text-stone-400">kg</p>
+              {latestMeasurements.weight && <p className="mt-1 text-xs text-stone-400">{formatPlanDate(latestMeasurements.weight.recordedDate)}</p>}
+            </div>
+            <div className="rounded-2xl bg-white p-5 shadow-[0_12px_28px_rgba(120,104,80,0.08)]">
+              <p className="text-sm font-bold text-stone-400">現在の体脂肪率</p>
+              <p className="mt-2 text-4xl font-light text-[#4d8b8a]">{currentBodyFat === null ? "--" : currentBodyFat.toFixed(2).replace(/0$/, "")}</p>
+              <p className="text-base text-stone-400">%</p>
+              {latestMeasurements.bodyFat && <p className="mt-1 text-xs text-stone-400">{formatPlanDate(latestMeasurements.bodyFat.recordedDate)}</p>}
             </div>
             <div className="rounded-2xl bg-white p-5 shadow-[0_12px_28px_rgba(120,104,80,0.08)]">
               <p className="text-sm font-bold text-stone-400">BMI</p>

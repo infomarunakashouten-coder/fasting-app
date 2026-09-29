@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Navigation from "@/components/Navigation";
 import { mergeWeightRecordsByDate } from "@/lib/merge-weight-records";
+import { emptyLatestMeasurements, loadLatestMeasurements, type LatestMeasurements } from "@/lib/latest-measurements";
 import { createClient } from "@/lib/supabase";
 import {
   getUserFacingError,
@@ -99,6 +100,7 @@ export default function RecordPage() {
   const [bodyFat, setBodyFat] = useState("");
   const [memo, setMemo] = useState("");
   const [recentRecords, setRecentRecords] = useState<RecordRow[]>([]);
+  const [latestMeasurements, setLatestMeasurements] = useState<LatestMeasurements>(emptyLatestMeasurements);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("14");
   const savedForm = useRef("");
@@ -155,12 +157,13 @@ export default function RecordPage() {
       return;
     }
 
-    const [{ data: newRecords, error: newError }, { data: oldRecords, error: oldError }] = await Promise.all([
+    const [{ data: newRecords, error: newError }, { data: oldRecords, error: oldError }, latest] = await Promise.all([
       supabase.from("daily_records").select("*").eq("user_id", user.id).order("recorded_date", { ascending: false }).limit(400),
       supabase.from("weight_records").select("*").eq("user_id", user.id).order("recorded_date", { ascending: false }).limit(400),
+      loadLatestMeasurements(supabase, user.id),
     ]);
 
-    if (newError && oldError) {
+    if ((newError && oldError) || latest.error) {
       setNotice({ type: "error", text: "記録の読み込みに失敗しました。時間をおいて再読み込みしてください。" });
       setLoading(false);
       return;
@@ -169,6 +172,7 @@ export default function RecordPage() {
     setNotice(null);
     const records = mergeWeightRecordsByDate(newRecords ?? [], oldRecords ?? []);
     setRecentRecords(records);
+    setLatestMeasurements(latest);
 
     const formRecord = records.find((record) => record.recorded_date === formDate);
     if (formRecord) {
@@ -325,22 +329,9 @@ export default function RecordPage() {
   const chartBodyFatCount = chartData.filter((point) => point.bodyFat !== null).length;
   const hasChartSeries = chartWeightCount >= 2 || chartBodyFatCount >= 2;
 
-  const weightRecords = recentRecords.filter(
-    (record) => numberValue(record.weight_kg ?? record.weight) !== null
-  );
-  const bodyFatRecords = recentRecords.filter(
-    (record) => numberValue(record.body_fat_percentage) !== null
-  );
-  const latestWeightRecord = weightRecords[0] ?? null;
-  const previousWeightRecord = weightRecords[1] ?? null;
-  const latestBodyFatRecord = bodyFatRecords[0] ?? null;
-  const latestWeight = numberValue(
-    latestWeightRecord?.weight_kg ?? latestWeightRecord?.weight
-  );
-  const previousWeight = numberValue(
-    previousWeightRecord?.weight_kg ?? previousWeightRecord?.weight
-  );
-  const latestBodyFat = numberValue(latestBodyFatRecord?.body_fat_percentage);
+  const latestWeight = latestMeasurements.weight?.value ?? null;
+  const previousWeight = latestMeasurements.previousWeight?.value ?? null;
+  const latestBodyFat = latestMeasurements.bodyFat?.value ?? null;
   const weightDiff = latestWeight !== null && previousWeight !== null ? latestWeight - previousWeight : null;
 
   return (
@@ -359,13 +350,13 @@ export default function RecordPage() {
                 label="体重"
                 value={latestWeight === null ? "--" : latestWeight.toFixed(1)}
                 unit="kg"
-                date={latestWeightRecord?.recorded_date}
+                date={latestMeasurements.weight?.recordedDate}
               />
               <Metric
                 label="体脂肪率"
                 value={latestBodyFat === null ? "--" : latestBodyFat.toFixed(1)}
                 unit="%"
-                date={latestBodyFatRecord?.recorded_date}
+                date={latestMeasurements.bodyFat?.recordedDate}
               />
             </div>
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/15 px-4 py-3">

@@ -1,6 +1,6 @@
 # Development Status
 
-最終更新: 2026-09-16（Asia/Tokyo）
+最終更新: 2026-09-28（Asia/Tokyo）
 
 この文書は「現在どこまで開発できているか」と「次に何をするか」を記録する。恒久的な仕様、設計方針、DB互換性、安全ルール、デプロイ手順の詳細はルートの [`AGENTS.md`](../AGENTS.md) を参照する。
 
@@ -28,6 +28,19 @@
 「動作している」は、コードに実装があり、直近のVercel本番ビルドが成功したことを基準にしている。すべての機能を2026-08-08に再度E2E確認したわけではないため、要確認項目は後述する。
 
 ## 2. 直近で実装・修正した内容
+
+### MVP-02 Step A：weight NULL化前のread互換修正
+
+- branch: `feature/mvp-02-weight-null-compat`。保存用branch名からrenameし、DB/保存機能のPRとは分離する。
+- Home/体重画面の現在値は `weight_records` へ項目別の非NULL・recorded_date DESC queryを発行する。体重は前回差用に2件、体脂肪率は1件。30/400件の履歴limitから独立する。
+- Homeは体重と体脂肪率のそれぞれの最新値・測定日を表示する。欠測は未記録扱い。
+- 設定/ファスティング/プランの既存queryは非NULL条件が既にある。画面内の現在値で最新canonical体重を優先し、Number(null)を避ける。プロフィールのDB更新処理は追加していない。
+- グラフ/レポートのNULL除外・欠測表示は維持。追加テストはA〜E、400件超のNULL履歴、項目別queryのfilter-before-limit、エラー伝播、週/月集計を確認する。
+- DB schema、RLS、RPC、保存API、既存手入力validation、`src/lib/weight-records.ts` は変更していない。体脂肪率だけの保存仕様は今回追加しない。
+- MVP-01健康入力の正式値域/精度への変更は今回は混ぜず、MVP-02保存工程で専用validationとともに対応する。Production非公開flagは維持する。
+- 設計5ファイルは `docs/designs/` に保持。SECURITY DEFINER専用role/直接GRANT/空search_path/row_security=onは設計だけで、実DBへのrole作成・migration適用は禁止のまま。
+- 追加17件を含む93件の単体テスト成功。TypeScript typecheckとProduction相当buildも成功。Supabase依存のEdge Runtime警告あり。Preview実機確認はPR公開後に実施する。
+- 次はPR Aの実機確認・承認後にmaster merge/Production確認。その後最新masterから保存用branchを作り直す。今回master merge/Production操作は行わない。
 
 ### MVP-01 音声・テキスト健康入力（作業ブランチ）
 
